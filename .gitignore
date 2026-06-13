@@ -1,0 +1,13 @@
+# Dependencias
+node_modules/
+
+# Build
+dist/
+
+# Variables de entorno (llaves de Supabase — nunca al repo)
+.env
+.env.local
+
+# Sistema / editor
+.DS_Store
+*.log

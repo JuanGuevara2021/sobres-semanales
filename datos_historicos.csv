@@ -1,0 +1,401 @@
+semana_inicio,concepto,monto,medio_pago,sobre_sugerido,categoria_libre,notas
+# ==========================================================================
+# DATOS HISTÓRICOS — Extraídos de la libreta de gastos (fotos)
+# ==========================================================================
+# semana_inicio = sábado de inicio de la semana (YYYY-MM-DD)
+# sobre_sugerido = sobre del modelo v2 al que pertenece; "FUERA" = fuera de sobres
+# categoria_libre = solo aplica si sobre_sugerido es "FUERA"
+# notas = [?] indica lectura incierta del manuscrito
+#
+# IMPORTANTE: Juan debe revisar:
+#  1. Montos con [?] — la letra a veces es ambigua
+#  2. Mapeo de sobres — algunos gastos podrían ir en otro sobre
+#  3. Medio de pago "Tarjeta" no distingue débito/crédito; ajustar manualmente
+#  4. Las fechas son el sábado de inicio de semana; ajustar día exacto si lo recuerdas
+#  5. Entradas marcadas INGRESO no son gastos; se excluyen de la carga
+#
+# Sobres disponibles (v2):
+#   Tianguis | Casa | Tienda UNAM | Walmart | Antojos
+#   Plataformas | Servicios | Diversión | Escuela | Salud | Ahorro
+#   FUERA (con categoría libre): Tarjetas, Renta, Transporte, Varios
+# ==========================================================================
+
+# ── SEMANA 1: Feb 28 – Mar 6, 2026 (Total libreta: 4,770) ──────────────
+2026-02-28,Basura,5,Efectivo,Casa,,
+2026-02-28,Sueldo Dany,500,Transferencia,INGRESO,,No cargar como gasto
+2026-02-28,Tianguis,429,Efectivo,Tianguis,,
+2026-02-28,Transporte centro,20,Tarjeta,FUERA,Transporte,
+2026-02-28,Comida centro,858,Tarjeta,FUERA,Varios,Gasto grande fuera de sobres [?]
+2026-02-28,Café centro,399,Tarjeta,FUERA,Varios,Gasto en salida al centro
+2026-02-28,Agua centro,30,Efectivo,Casa,,Agua durante salida
+2026-02-28,Tamales,44,Efectivo,Antojos,,
+2026-02-28,Teléfono,376,Tarjeta,Servicios,,[?] concepto poco legible
+2026-02-28,Puros,100,Efectivo,Diversión,,
+2026-02-28,Pizzas,298,Tarjeta,Antojos,,
+2026-02-28,Agua,69,Tarjeta,Casa,,
+2026-02-28,Jugo refresco,29,Tarjeta,Antojos,,
+2026-02-28,Bananas con molido,71,Efectivo,Casa,,
+2026-02-28,Salsa,21,Efectivo,Casa,,
+2026-02-28,Psicóloga Clara,200,Transferencia,Salud,,
+2026-02-28,Spotify,189,Tarjeta,Plataformas,,Suscripción mensual
+2026-02-28,Psicólogo Juan,200,Transferencia,Salud,,
+2026-02-28,Transporte al seguro,102,Efectivo,FUERA,Transporte,
+2026-02-28,Uber,10,Tarjeta,FUERA,Transporte,[?] concepto poco legible
+2026-02-28,Esperanza pan,100,Tarjeta,Casa,,Panadería
+2026-02-28,Pan tienda,48,Tarjeta,Casa,,
+2026-02-28,Basura,5,Efectivo,Casa,,
+2026-02-28,Tacos de pastor,70,Efectivo,Antojos,,
+2026-02-28,Yakult,14,Efectivo,Casa,,
+2026-02-28,Café Juanito trabajo,80,Tarjeta,Casa,,Café para el trabajo
+2026-02-28,Leche chocolate,42,Tarjeta,Casa,,
+
+# ── SEMANA 2: Mar 7 – Mar 13, 2026 (Total libreta: 8,114) ──────────────
+2026-03-07,Transporte a Chopo,40,Efectivo,FUERA,Transporte,
+2026-03-07,Chopo (análisis),790,Tarjeta,Salud,,Laboratorio
+2026-03-07,Tianguis,420,Efectivo,Tianguis,,
+2026-03-07,Camino de mesa,200,Transferencia,Casa,,
+2026-03-07,Transporte al centro,20,Tarjeta,FUERA,Transporte,
+2026-03-07,Andadera bastón,1000,Tarjeta,Salud,,
+2026-03-07,Cuadros p/poster,862,Tarjeta,Diversión,,
+2026-03-07,Comida china + propina,510,Tarjeta,Antojos,,
+2026-03-07,Llaveros Chihuito,330,Tarjeta,Diversión,,
+2026-03-07,Pins diferentes,140,Tarjeta,Diversión,,
+2026-03-07,KFC,280,Tarjeta,Antojos,,
+2026-03-07,Yakults,18,Efectivo,Casa,,
+2026-03-07,Polo + jerga,44,Efectivo,Casa,,Limpieza
+2026-03-07,Creatina,900,Tarjeta,Salud,,Suplemento
+2026-03-07,Tianguis (sopas arroz nopales),130,Efectivo,Tianguis,,
+2026-03-07,Gorgonzola,35,Efectivo,Casa,,[?] concepto incierto
+2026-03-07,Pan,41,Efectivo,Casa,,
+2026-03-07,Psicóloga Clara,200,Transferencia,Salud,,
+2026-03-07,Transporte al centro,10,Tarjeta,FUERA,Transporte,
+2026-03-07,Dermatólogo,600,Efectivo,Salud,,
+2026-03-07,Shampoo p/caspa,450,Tarjeta,Salud,,
+2026-03-07,Medicamento,132,Tarjeta,Salud,,
+2026-03-07,Tortas,100,Efectivo,Antojos,,
+2026-03-07,Tienda (galletas crédito pan),165,Tarjeta,Casa,,
+2026-03-07,Psicólogo Juan,200,Transferencia,Salud,,
+2026-03-07,Helados,100,Tarjeta,Antojos,,
+2026-03-07,Transporte,17,Efectivo,FUERA,Transporte,
+2026-03-07,Tacos,120,Efectivo,Antojos,,
+2026-03-07,Bici eléctrica,135,Tarjeta,FUERA,Transporte,Recarga bici
+2026-03-07,Chocolate del Chopo,30,Efectivo,Antojos,,[?] monto
+
+# ── SEMANA 3: Mar 14 – Mar 20, 2026 ────────────────────────────────────
+2026-03-14,Mercado Crédito,1907,Tarjeta,FUERA,Tarjetas,Pago de tarjeta
+2026-03-14,Tarjeta Stori,1335,Tarjeta,FUERA,Tarjetas,Pago de tarjeta
+2026-03-14,Mercado Pago,965,Tarjeta,FUERA,Tarjetas,Pago de tarjeta
+2026-03-14,Sueldo Dany,1000,Transferencia,INGRESO,,No cargar como gasto
+2026-03-14,Tianguis,302,Efectivo,Tianguis,,
+2026-03-14,Tienda UNAM,886,Tarjeta,Tienda UNAM,,
+2026-03-14,Pasaje ida a casa,108,Efectivo,FUERA,Transporte,
+2026-03-14,Carne cocinar,1285,Efectivo,Casa,,
+2026-03-14,Walmart,610,Tarjeta,Walmart,,
+2026-03-14,Tienda p/hamburguesas,246,Tarjeta,Casa,,Ingredientes para cocinar
+2026-03-14,Pizzas,298,Tarjeta,Antojos,,
+2026-03-14,Huevo y queso,37,Efectivo,Casa,,[?]
+2026-03-14,Donas,24,Efectivo,Antojos,,[?]
+2026-03-14,Psicóloga Clara,200,Transferencia,Salud,,
+2026-03-14,Tienda juanito partes,280,Tarjeta,Casa,,[?] concepto incierto
+2026-03-14,Agua,67,Tarjeta,Casa,,
+2026-03-14,Basura,5,Efectivo,Casa,,
+2026-03-14,Tortas de pastor,110,Efectivo,Antojos,,
+2026-03-14,Garnachas,155,Efectivo,Antojos,,
+2026-03-14,Claude,360,Tarjeta,Plataformas,,Suscripción
+
+# ── SEMANA 4: Mar 21 – Mar 27, 2026 (Total libreta derecha: ~3,505) ────
+2026-03-21,Tianguis,295,Efectivo,Tianguis,,
+2026-03-21,Pasaje Dani a perritos,14,Efectivo,FUERA,Transporte,[?]
+2026-03-21,Tortas Juanito,109,Efectivo,Antojos,,
+2026-03-21,Tienda yogurt,60,Tarjeta,Casa,,
+2026-03-21,Tamales,51,Efectivo,Antojos,,
+2026-03-21,Tienda 3B,189,Tarjeta,Casa,,
+2026-03-21,Pasaje a centro,40,Efectivo,FUERA,Transporte,
+2026-03-21,Cuadro de Dany,1500,Tarjeta,Diversión,,Gasto esporádico grande
+2026-03-21,Lapicera de Dani,200,Tarjeta,Escuela,,[?] podría ser diversión
+2026-03-21,Adelanto de espejo,500,Efectivo,Casa,,
+2026-03-21,Helados michoacana,56,Efectivo,Antojos,,
+2026-03-21,Medicamento bioneura,61,Efectivo,Salud,,
+2026-03-21,Galletas tienda y leche,88,Tarjeta,Casa,,
+2026-03-21,Pasaje Dani a escuela,20,Efectivo,Escuela,,
+2026-03-21,Comida panda,176,Tarjeta,Antojos,,[?] concepto
+2026-03-21,Tarjeta Broadcard,927,Tarjeta,FUERA,Tarjetas,Pago de tarjeta
+2026-03-21,Psicólogo Juan,200,Transferencia,Salud,,
+2026-03-21,Psicóloga Clara,200,Transferencia,Salud,,
+2026-03-21,Bote del agua,162,Efectivo,Casa,,
+
+# ── SEMANA 5: Mar 28 – Abr 3, 2026 (Total libreta: 7,796) ─────────────
+2026-03-28,Sueldo Dany,1000,Transferencia,INGRESO,,No cargar como gasto
+2026-03-28,Boletos de cine,406,Tarjeta,Diversión,,
+2026-03-28,Tamales,101,Efectivo,Antojos,,
+2026-03-28,Psicóloga Clara,200,Transferencia,Salud,,
+2026-03-28,Tianguis,345,Efectivo,Tianguis,,
+2026-03-28,Tarjeta Vive,3000,Tarjeta,FUERA,Tarjetas,Pago tarjeta BBVA Vive
+2026-03-28,Tarjeta Azul,2017,Tarjeta,FUERA,Tarjetas,Pago tarjeta BBVA Azul
+2026-03-28,Consulta Juanito gastroenterólogo,1500,Tarjeta,Salud,,
+2026-03-28,Tacos de pastor,110,Efectivo,Antojos,,
+2026-03-28,Tienda UNAM,1512,Tarjeta,Tienda UNAM,,
+2026-03-28,Trapeador cubeta,927,Tarjeta,Casa,,
+2026-03-28,Esperanza,81,Tarjeta,Casa,,Panadería
+2026-03-28,Churros,270,Tarjeta,Antojos,,
+2026-03-28,PlayStation + 2do control,11000,Tarjeta,FUERA,MSI,Compra a meses — no semanal
+2026-03-28,Abono a tarjeta,800,Tarjeta,FUERA,Tarjetas,
+2026-03-28,Baños,156,Efectivo,FUERA,Varios,6+150
+2026-03-28,Baño,5,Tarjeta,FUERA,Varios,
+2026-03-28,Refrescos,33,Tarjeta,Antojos,,
+2026-03-28,Hamburguesas,125,Efectivo,Antojos,,
+2026-03-28,Boings,28,Efectivo,Antojos,,
+2026-03-28,Tienda queso + bolillos,63,Efectivo,Casa,,50+13
+2026-03-28,Agua,67,Tarjeta,Casa,,
+2026-03-28,Suscripción juegos,295,Tarjeta,Plataformas,,PlayStation Plus
+
+# ── SEMANA 6: Abr 4 – Abr 10, 2026 ────────────────────────────────────
+2026-04-04,Agua,67,Tarjeta,Casa,,
+2026-04-04,Aguas centro,40,Tarjeta,FUERA,Varios,[?]
+2026-04-04,Espejo resto,800,Tarjeta,Casa,,Pago restante del espejo
+2026-04-04,Cuadro Juan,1000,Efectivo,Diversión,,
+2026-04-04,Walmart Copilco,355,Tarjeta,Walmart,,
+2026-04-04,Tomates,55,Efectivo,Casa,,
+2026-04-04,Psicóloga Clara,200,Transferencia,Salud,,
+2026-04-04,Psicólogo Juan,200,Transferencia,Salud,,
+2026-04-04,Tamales del sábado,47,Efectivo,Antojos,,
+2026-04-04,Garnachas del viernes,190,Efectivo,Antojos,,[?] monto
+2026-04-04,Masa,40,Tarjeta,Casa,,[?] concepto y monto
+2026-04-04,Basura orgánica,5,Efectivo,Casa,,
+2026-04-04,Licuadora en sobre,14,Efectivo,Casa,,[?] concepto
+2026-04-04,Pares tienda,45,Tarjeta,Casa,,[?]
+2026-04-04,Claude,355,Tarjeta,Plataformas,,Suscripción
+2026-04-04,Uber domingo,180,Tarjeta,FUERA,Transporte,
+2026-04-04,Mobi,90,Tarjeta,FUERA,Transporte,
+
+# ── SEMANA 7: Abr 11 – Abr 17, 2026 ───────────────────────────────────
+2026-04-11,Sueldo Dany,1000,Transferencia,INGRESO,,No cargar como gasto
+2026-04-11,Psicóloga Clara,200,Transferencia,Salud,,
+2026-04-11,Tianguis,405,Efectivo,Tianguis,,
+2026-04-11,Pasaje a casa,108,Efectivo,FUERA,Transporte,
+2026-04-11,Walmart casa,409,Tarjeta,Walmart,,
+2026-04-11,Tortas,100,Efectivo,Antojos,,
+2026-04-11,Refresco,28,Tarjeta,Antojos,,
+2026-04-11,Galletas,20,Tarjeta,Casa,,
+2026-04-11,BBVA Vive,1832,Tarjeta,FUERA,Tarjetas,Pago tarjeta
+
+# ── SEMANA 8: Abr 18 – Abr 24, 2026 (aprox) ───────────────────────────
+# Datos de Image 7 izquierda (items mensuales de abril) + Image 8
+2026-04-18,Fotos Dany,300,Efectivo,Casa,,
+2026-04-18,Renta,7300,Transferencia,FUERA,Renta,Pago mensual [?] monto 7300 o 7500
+2026-04-18,Boletos cine,102,Tarjeta,Diversión,,
+2026-04-18,Pasaje Dany,50,Efectivo,FUERA,Transporte,
+2026-04-18,Comida Juanito,305,Efectivo,Antojos,,
+2026-04-18,Agua,70,Efectivo,Casa,,
+2026-04-18,Teléfono,506,Tarjeta,Servicios,,Pago mensual
+
+# ── SEMANA 9: Abr 25 – May 1, 2026 ────────────────────────────────────
+# Image 8 izquierda
+2026-04-25,Bici eléctrica,134,Tarjeta,FUERA,Transporte,Recarga
+2026-04-25,Socio papitas + tortillas,67,Tarjeta,Casa,,
+2026-04-25,Suero galletas,58.5,Tarjeta,Casa,,[?]
+2026-04-25,Pollo,140,Tarjeta,Casa,,
+2026-04-25,Taquitos de Juan,125,Efectivo,Antojos,,
+2026-04-25,Taquitos que hicieron Dani,110,Efectivo,Antojos,,
+2026-04-25,Basura orgánica,5,Efectivo,Casa,,
+2026-04-25,Helado,1900,Tarjeta,Casa,,[?] monto alto — ¿teclado?
+
+# ── SEMANA 10: May 2 – May 8, 2026 ────────────────────────────────────
+# Image 8 continuación izquierda
+2026-05-02,Pasaje Juan con piña,184,Efectivo,FUERA,Transporte,[?]
+2026-05-02,Pasaje Dani al centro,18,Efectivo,FUERA,Transporte,
+2026-05-02,Café en grano,399,Efectivo,Casa,,
+2026-05-02,Tamales,78,Efectivo,Antojos,,
+2026-05-02,Tortillas huevo,28.5,Tarjeta,Casa,,
+2026-05-02,Longaniza,130,Efectivo,Casa,,
+2026-05-02,Tianguis (sopas +),205,Efectivo,Tianguis,,
+2026-05-02,Tienda (paq de limón),75,Efectivo,Casa,,
+2026-05-02,Psicóloga Clara,200,Transferencia,Salud,,
+2026-05-02,Pan bimbo,44,Tarjeta,Casa,,
+2026-05-02,Agua,67,Tarjeta,Casa,,
+2026-05-02,Itacate,405,Tarjeta,Casa,,[?] concepto
+2026-05-02,Pollo,145,Efectivo,Casa,,
+2026-05-02,Manzanas,20,Efectivo,Casa,,
+2026-05-02,Yogurt oikos,15,Efectivo,Casa,,
+2026-05-02,Tomates,70,Efectivo,Casa,,
+2026-05-02,Tostadas,22,Efectivo,Casa,,
+2026-05-02,Tienda UNAM,883,Tarjeta,Tienda UNAM,,
+# Image 8 derecha
+2026-05-02,Fisioterapeuta,350,Transferencia,Salud,,
+2026-05-02,Hamburguesas,110,Efectivo,Antojos,,
+2026-05-02,Uber Juanito,70,Tarjeta,FUERA,Transporte,
+2026-05-02,Galleta Juanito,14,Efectivo,Casa,,[?]
+2026-05-02,Agua de horchata,35,Efectivo,Antojos,,
+2026-05-02,Concierto Bunbury,2000,Tarjeta,Diversión,,Evento especial
+2026-05-02,Comida en Peters,600,Tarjeta,Antojos,,[?] concepto
+2026-05-02,Juana teclado,175,Efectivo,Casa,,[?] concepto
+
+# ── SEMANA 11: May 9 – May 15, 2026 (aprox) ───────────────────────────
+# Image 8 derecha inferior + Image 4 superior
+2026-05-09,Sueldo Dany,1000,Transferencia,INGRESO,,No cargar como gasto
+2026-05-09,Spotify,189,Tarjeta,Plataformas,,Suscripción
+2026-05-09,Broadcard,931,Tarjeta,FUERA,Tarjetas,Pago tarjeta
+2026-05-09,Bici eléctrica,134,Tarjeta,FUERA,Transporte,Recarga
+
+# ── SEMANA 12: May 16 – May 22, 2026 (aprox) ──────────────────────────
+# Image 4 superior
+2026-05-16,Tianguis,566,Efectivo,Tianguis,,
+2026-05-16,Pan arroz,24,Efectivo,Casa,,[?]
+2026-05-16,Cena,47,Efectivo,Antojos,,[?]
+2026-05-16,Basura,5,Efectivo,Casa,,
+2026-05-16,Cobija,37,Efectivo,Casa,,[?]
+2026-05-16,Tienda UNAM,484,Tarjeta,Tienda UNAM,,
+2026-05-16,Pasaje a escuela,100,Efectivo,Escuela,,
+2026-05-16,Hamburguesas + refrescos,20,Efectivo,Antojos,,
+2026-05-16,Pan,100,Efectivo,Casa,,
+2026-05-16,Tortas,144,Efectivo,Antojos,,
+2026-05-16,Chiles,41,Efectivo,Casa,,
+2026-05-16,Tamales y chiles,40,Efectivo,Antojos,,
+2026-05-16,Pasaje a escuela,20,Efectivo,Escuela,,
+2026-05-16,Refrescos + gogo,100,Efectivo,Antojos,,[?]
+2026-05-16,Sémana,37,Efectivo,Casa,,[?] concepto
+2026-05-16,Crema,2223,Tarjeta,Casa,,[?] monto muy alto — revisar
+2026-05-16,Medicamento Juan,109,Efectivo,Salud,,
+2026-05-16,Pambazos,1380,Tarjeta,Casa,,[?] monto parece alto
+2026-05-16,Taxi,75,Efectivo,FUERA,Transporte,
+2026-05-16,Sena semilla,25,Efectivo,Casa,,[?]
+
+# ── SEMANA 13: May 23 – May 29, 2026 (aprox) ──────────────────────────
+# Image 4 inferior
+2026-05-23,Sueldo Dany,1000,Transferencia,INGRESO,,No cargar como gasto
+2026-05-23,Pasaje a la casa,108,Efectivo,FUERA,Transporte,
+2026-05-23,Kosher bicicleta,2080,Tarjeta,FUERA,Varios,[?] concepto incierto
+2026-05-23,Walmart sabores,50,Tarjeta,Walmart,,
+2026-05-23,Cachitos café,200,Efectivo,Casa,,[?]
+2026-05-23,Refresco,16,Efectivo,Antojos,,[?]
+2026-05-23,Carne Carmen,330,Efectivo,Casa,,[?]
+2026-05-23,Dane de a casa,54,Efectivo,FUERA,Transporte,[?]
+2026-05-23,Dana veterinario,310,Tarjeta,FUERA,Varios,Gasto esporádico
+2026-05-23,Walmart,404,Tarjeta,Walmart,,
+2026-05-23,Tianguis,556,Efectivo,Tianguis,,
+2026-05-23,Tienda,89,Efectivo,Casa,,[?]
+2026-05-23,Antojos,81,Efectivo,Antojos,,
+2026-05-23,Flores,80,Efectivo,Diversión,,
+2026-05-23,Basura,10,Efectivo,Casa,,
+2026-05-23,Pasaje a centro,15,Efectivo,FUERA,Transporte,
+2026-05-23,Medicamento Juan,424,Efectivo,Salud,,[?] monto
+2026-05-23,Medicamento Simi,173,Efectivo,Salud,,[?]
+2026-05-23,Hamburguesas,120,Efectivo,Antojos,,
+2026-05-23,Garnachas,103,Efectivo,Antojos,,
+2026-05-23,Dulces + pasajes,50,Efectivo,Antojos,,[?] mixto
+2026-05-23,Agua suero,50,Efectivo,Casa,,
+2026-05-23,Stori,100,Tarjeta,FUERA,Tarjetas,[?] monto - podría ser 900
+
+# ── SEMANA 14: May 30 – Jun 5, 2026 ───────────────────────────────────
+# Image 2 superior + Image 1 superior
+2026-05-30,Tienda UNAM,1653,Tarjeta,Tienda UNAM,,
+2026-05-30,Bodega Clara,200,Efectivo,Casa,,[?] concepto
+2026-05-30,Pollo,208,Tarjeta,Casa,,[?]
+2026-05-30,Algo salud,189,Tarjeta,Salud,,[?] concepto poco legible
+2026-05-30,Canela,64,Efectivo,Casa,,[?]
+2026-05-30,Salchichas Juan,635,Efectivo,Casa,,[?] monto alto para salchichas
+2026-05-30,Hamburguesas,60,Efectivo,Antojos,,[?]
+2026-05-30,Refrescos,62,Efectivo,Antojos,,[?]
+2026-05-30,Claude,345,Tarjeta,Plataformas,,Suscripción
+2026-05-30,Anti-escuela,50,Efectivo,Escuela,,[?] concepto
+2026-05-30,Pizza,187,Tarjeta,Antojos,,
+2026-05-30,Refresco,22,Efectivo,Antojos,,
+2026-05-30,Agua,64,Tarjeta,Casa,,
+2026-05-30,Basura,10,Efectivo,Casa,,
+# Image 1 superior - continuación semana May 30 - Jun 5
+2026-05-30,Tienda,2498,Tarjeta,Casa,,[?] monto — revisar
+2026-05-30,Pepino,200,Efectivo,Casa,,[?]
+2026-05-30,Efectivo gasto,50,Efectivo,Casa,,[?]
+2026-05-30,Tianguis,683,Efectivo,Tianguis,,
+2026-05-30,Efectivo gasto,166,Efectivo,Casa,,[?]
+2026-05-30,Estética/Servicios,187,Efectivo,Servicios,,[?]
+2026-05-30,Tarjeta gasto,200,Tarjeta,Casa,,[?]
+2026-05-30,Tarjeta gasto,75,Tarjeta,Casa,,[?]
+2026-05-30,Tarjeta gasto,657,Tarjeta,Casa,,[?] concepto
+2026-05-30,Metro calentitas,211,Tarjeta,Antojos,,[?]
+2026-05-30,Hamburguesas,20,Efectivo,Antojos,,
+2026-05-30,Efectivo gasto,140,Efectivo,Casa,,[?]
+2026-05-30,Tortacho,10,Efectivo,Antojos,,[?]
+2026-05-30,Efectivo gasto,40,Efectivo,Casa,,[?]
+2026-05-30,Soneira quesee,253,Efectivo,Antojos,,[?] concepto
+
+# ── SEMANA 15: Jun 6 – Jun 12, 2026 ───────────────────────────────────
+# Image 2 inferior + Image 1 inferior
+2026-06-06,Consulta Juan,1300,Efectivo,Salud,,[?] monto
+2026-06-06,Pasaje a consulta,200,Efectivo,FUERA,Transporte,[?]
+2026-06-06,Pasaje a casa,108,Efectivo,FUERA,Transporte,
+2026-06-06,Walmart,172,Tarjeta,Walmart,,[?]
+2026-06-06,Carne Carmen,314,Efectivo,Casa,,[?]
+2026-06-06,Soporte / plataforma,375,Efectivo,Servicios,,[?]
+2026-06-06,Tianguis,556,Efectivo,Tianguis,,
+2026-06-06,Sueldo Dany,1000,Transferencia,INGRESO,,No cargar como gasto
+2026-06-06,Tienda,89,Efectivo,Casa,,[?]
+2026-06-06,Antojos,81,Efectivo,Antojos,,
+2026-06-06,Flores,80,Efectivo,Diversión,,
+2026-06-06,Basura,10,Efectivo,Casa,,
+2026-06-06,Pasaje a centro,15,Efectivo,FUERA,Transporte,
+2026-06-06,Medicamento Juan,424,Efectivo,Salud,,[?]
+2026-06-06,Medicamento Simi,173,Efectivo,Salud,,[?]
+2026-06-06,Hamburguesas,120,Efectivo,Antojos,,
+2026-06-06,Garnachas,103,Efectivo,Antojos,,
+2026-06-06,Dulces + pasajes,50,Efectivo,FUERA,Varios,
+2026-06-06,Agua suero,50,Efectivo,Casa,,
+2026-06-06,Stori,100,Tarjeta,FUERA,Tarjetas,[?]
+# Image 1 inferior
+2026-06-06,Pago a escuela,20,Efectivo,Escuela,,
+2026-06-06,Medicamento Juan,298,Tarjeta,Salud,,
+2026-06-06,Tarjeta gasto,74,Tarjeta,Casa,,[?]
+2026-06-06,Efectivo gasto,106,Efectivo,Casa,,[?]
+2026-06-06,Transporte a casa,108,Efectivo,FUERA,Transporte,
+2026-06-06,Tianguis,150,Efectivo,Tianguis,,
+2026-06-06,Walmart,94,Tarjeta,Walmart,,
+2026-06-06,Garrafón,440,Efectivo,Casa,,
+2026-06-06,Sal refresco + papas,80,Efectivo,Antojos,,
+2026-06-06,Sueldo Dany,54,Efectivo,Casa,,[?] concepto — ¿no es ingreso?
+2026-06-06,Plataformas,1000,Transferencia,Plataformas,,[?] pago plataformas
+2026-06-06,Pizza,4858,Tarjeta,Antojos,,[?] monto muy alto — revisar
+2026-06-06,Educación,2079,Efectivo,Escuela,,[?] monto
+2026-06-06,Pasaje a centro,40,Tarjeta,FUERA,Transporte,
+2026-06-06,Pasaje,10,Efectivo,FUERA,Transporte,
+2026-06-06,Café en grano,496,Efectivo,Casa,,[?]
+2026-06-06,Hamburguesas,110,Tarjeta,Antojos,,
+2026-06-06,Claude,300,Tarjeta,Plataformas,,[?] monto
+
+# ── SEMANA PARCIAL (Image 6): datos sueltos sin semana clara ──────────
+# Estos parecen ser una lista de compras o semana incompleta
+#2026-06-13,Agua,139,Efectivo,Casa,,
+#2026-06-13,Tienda UNAM,463,Tarjeta,Tienda UNAM,,
+#2026-06-13,Pollo,81,Efectivo,Casa,,
+#2026-06-13,Verdulería,58,Efectivo,Casa,,
+#2026-06-13,Pan,51,Efectivo,Casa,,
+#2026-06-13,Chocolate,26,Efectivo,Casa,,
+#2026-06-13,Crema,?,Efectivo,Casa,,[?] sin monto visible
+#2026-06-13,Coco + agua,?,Efectivo,Casa,,[?] sin monto visible
+#2026-06-13,Tortillas + galleta,?,Efectivo,Casa,,[?] sin monto visible
+
+# ==========================================================================
+# INGRESOS RECURRENTES (para referencia, no cargar como gastos)
+# ==========================================================================
+# Sueldo Dany: $1,000 cada ~2 semanas (transferencia)
+#
+# PAGOS RECURRENTES IDENTIFICADOS (para feature F3):
+# - Psicóloga Clara: $200, transferencia, quincenal/semanal → Salud
+# - Psicólogo Juan: $200, transferencia, quincenal → Salud
+# - Spotify: $189/mes, tarjeta → Plataformas
+# - Claude: ~$345-360/mes, tarjeta → Plataformas
+# - Suscripción juegos (PlayStation): $295/mes, tarjeta → Plataformas
+# - Tarjeta BBVA Vive: variable, mensual → Fuera (Tarjetas)
+# - Tarjeta BBVA Azul: variable, mensual → Fuera (Tarjetas)
+# - Tarjeta Stori: variable, mensual → Fuera (Tarjetas)
+# - Mercado Crédito: variable, mensual → Fuera (Tarjetas)
+# - Broadcard: variable, mensual → Fuera (Tarjetas)
+# - Teléfono: ~$506/mes → Servicios
+# - Renta: ~$7,300-7,500/mes → Fuera (Renta)
+# - Bici eléctrica: ~$134-137, recarga → Fuera (Transporte)
+# - Basura: $5, semanal → Casa
+# - Agua: $67, semanal → Casa
+#
+# COMPRA A MESES IDENTIFICADA (para feature F4):
+# - PlayStation + 2do control: $11,000, tarjeta (¿BBVA Azul?), ¿15 meses?
+#   Fecha compra: ~Mar 28, 2026. Inicio de pago: verificar con Juan.
+# ==========================================================================

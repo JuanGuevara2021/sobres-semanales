@@ -1,0 +1,1412 @@
+import { useState, useEffect, useCallback } from "react";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { supabase } from "./lib/supabase";
+import Login from "./components/Login";
+import SetupPerfil from "./components/SetupPerfil";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, LineChart, Line, ReferenceLine, CartesianGrid,
+} from "recharts";
+
+/* ============================================================
+   SOBRES SEMANALES v2.1 — conectado a Supabase
+   ============================================================ */
+
+const MEDIOS = ["efectivo", "debito", "credito", "transferencia"];
+const MEDIOS_LABEL = { efectivo: "Efectivo", debito: "Debito", credito: "Credito", transferencia: "Transferencia" };
+const CATEGORIAS = ["casa", "renta", "diversion", "salud", "escuela", "tarjetas"];
+const CAT_LABEL = { casa: "Casa", renta: "Renta", diversion: "Diversion", salud: "Salud", escuela: "Escuela", tarjetas: "Tarjetas" };
+const CAT_COLOR = { casa: "#2563eb", renta: "#7c3aed", diversion: "#db2777", salud: "#059669", escuela: "#d97706", tarjetas: "#dc2626" };
+const EMOJIS = ["🛒", "🍽️", "🏠", "🎮", "💊", "📚", "🚇", "👕", "🐶", "🎁", "☕", "⚽", "📱", "📞", "🎉", "🐷"];
+const FREQ_LABEL = { semanal: "Semanal", quincenal: "Quincenal", mensual: "Mensual" };
+
+const TEMAS = {
+  claro: {
+    label: "Claro", paper: "#F6F4ED", line: "#E3DECF", card: "#FFFFFF",
+    ink: "#22324A", inkSoft: "#5A6B85", green: "#0B7A4B", amber: "#B07A1F",
+    red: "#B3402A", flap: "#EFEBDF",
+    bg: "repeating-linear-gradient(to bottom,transparent 0 31px,rgba(34,50,74,.045) 31px 32px),#F6F4ED",
+  },
+  oscuro: {
+    label: "Oscuro", paper: "#16171F", line: "#2A2C3A", card: "#1E2030",
+    ink: "#E0DEF0", inkSoft: "#8E8CA4", green: "#34D399", amber: "#FBBF24",
+    red: "#F87171", flap: "#2A2C3A",
+    bg: "#16171F",
+  },
+  coquette: {
+    label: "Coquette", paper: "#FFF5F7", line: "#F5D0D8", card: "#FFFFFF",
+    ink: "#5C2040", inkSoft: "#9B6B82", green: "#D4608A", amber: "#E8A87C",
+    red: "#C53D4D", flap: "#FDE8EE",
+    bg: "repeating-linear-gradient(to bottom,transparent 0 31px,rgba(200,100,140,.06) 31px 32px),#FFF5F7",
+  },
+  periodico: {
+    label: "Periodico", paper: "#F2EFE4", line: "#C8C3B4", card: "#FAFAF5",
+    ink: "#1A1A1A", inkSoft: "#555555", green: "#2D5016", amber: "#8B7500",
+    red: "#8B0000", flap: "#E8E4D8",
+    bg: "repeating-linear-gradient(to bottom,transparent 0 23px,rgba(0,0,0,.08) 23px 24px),#F2EFE4",
+  },
+  mariposas: {
+    label: "Mariposas", paper: "#F0EEFF", line: "#D0CCEE", card: "#FFFFFF",
+    ink: "#2D1B69", inkSoft: "#7B6FA6", green: "#6B48C8", amber: "#D4A017",
+    red: "#C53D4D", flap: "#E4E0F8",
+    bg: "repeating-linear-gradient(to bottom,transparent 0 31px,rgba(100,60,200,.05) 31px 32px),#F0EEFF",
+  },
+};
+
+/* ---------- helpers de fecha (semana sab-vie) ---------- */
+const pad = (n) => String(n).padStart(2, "0");
+const toStr = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fromStr = (s) => {
+  const [y, m, dd] = s.split("-").map(Number);
+  return new Date(y, m - 1, dd);
+};
+const addDays = (d, n) => {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+};
+const weekStartOf = (d) => addDays(d, -((d.getDay() + 1) % 7));
+const weekOf = (fechaStr) => toStr(weekStartOf(fromStr(fechaStr)));
+
+const DIAS = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
+const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const fmtDia = (s) => {
+  const d = fromStr(s);
+  return `${DIAS[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]}`;
+};
+const weekLabel = (ws) => {
+  const a = fromStr(ws);
+  const b = addDays(a, 6);
+  return `Sab ${a.getDate()} ${MESES[a.getMonth()]} – Vie ${b.getDate()} ${MESES[b.getMonth()]}`;
+};
+const money = (n) =>
+  new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: Math.abs(n % 1) > 0.001 ? 2 : 0,
+  }).format(n);
+
+/* ---------- helpers para pagos recurrentes ---------- */
+function getPagosProximos(pagos) {
+  const hoy = new Date();
+  const diaHoy = hoy.getDate();
+  const mesHoy = hoy.getMonth();
+  const anioHoy = hoy.getFullYear();
+  const wsHoy = toStr(weekStartOf(hoy));
+  return pagos.filter((p) => {
+    if (!p.activo) return false;
+    if (p.tarjeta_id) return false;
+    if (p.pospuesto_hasta && p.pospuesto_hasta >= toStr(hoy)) return false;
+    if (p.frecuencia === "semanal") {
+      return !p.ultimo_pago || weekOf(p.ultimo_pago) !== wsHoy;
+    }
+    const dia = p.dia_pago || 1;
+    const diff = dia - diaHoy;
+    const enRango = diff >= -1 && diff <= 3;
+    if (!enRango) return false;
+    return !p.ultimo_pago || fromStr(p.ultimo_pago).getMonth() !== mesHoy || fromStr(p.ultimo_pago).getFullYear() !== anioHoy;
+  });
+}
+
+/* ---------- helpers para tarjetas ---------- */
+function getCicloActual(diaCorte) {
+  const hoy = new Date();
+  const y = hoy.getFullYear(), m = hoy.getMonth();
+  if (hoy.getDate() <= diaCorte) {
+    return { inicio: toStr(new Date(y, m - 1, diaCorte + 1)), fin: toStr(new Date(y, m, diaCorte)) };
+  }
+  return { inicio: toStr(new Date(y, m, diaCorte + 1)), fin: toStr(new Date(y, m + 1, diaCorte)) };
+}
+
+function calcEstimadoTarjeta(tarjeta, gastos, msiList) {
+  const msiMensual = msiList
+    .filter((m) => m.tarjeta_id === tarjeta.id && m.activo)
+    .reduce((a, m) => {
+      const st = calcMSI(m);
+      return st.estatus === "activo" ? a + st.mensual : a;
+    }, 0);
+  const numMSI = msiList.filter((m) => m.tarjeta_id === tarjeta.id && m.activo && calcMSI(m).estatus === "activo").length;
+  return { msi: msiMensual, numMSI, total: msiMensual };
+}
+
+function getTarjetaRecordatorios(tarjetas, pagosRec) {
+  const hoy = new Date();
+  const diaHoy = hoy.getDate();
+  const mesHoy = hoy.getMonth();
+  const anioHoy = hoy.getFullYear();
+  return tarjetas.filter((t) => {
+    if (!t.activo || !t.dia_pago) return false;
+    const diff = t.dia_pago - diaHoy;
+    if (diff < -1 || diff > 3) return false;
+    const pagoRec = pagosRec.find((p) => p.tarjeta_id === t.id);
+    if (pagoRec?.ultimo_pago) {
+      const up = fromStr(pagoRec.ultimo_pago);
+      if (up.getMonth() === mesHoy && up.getFullYear() === anioHoy) return false;
+    }
+    return true;
+  });
+}
+
+/* ---------- helpers para MSI ---------- */
+function calcMSI(msi) {
+  const hoy = new Date();
+  const pp = fromStr(msi.mes_primer_pago);
+  const total = Number(msi.monto_total);
+  const meses = msi.num_meses;
+  const mensual = total / meses;
+  const pagados = (hoy.getFullYear() - pp.getFullYear()) * 12 + (hoy.getMonth() - pp.getMonth());
+  if (pagados < 0) return { estatus: "pendiente", pagados: 0, meses, mensual, restante: total };
+  if (pagados >= meses) return { estatus: "liquidado", pagados: meses, meses, mensual, restante: 0 };
+  return { estatus: "activo", pagados, meses, mensual, restante: mensual * (meses - pagados) };
+}
+
+/* ---------- cierre automatico v2.1 ---------- */
+async function autoClose(sobres, gastos, cierresExistentes, cuentaId) {
+  const todayWS = toStr(weekStartOf(new Date()));
+  const semanasConGastos = [...new Set(gastos.map((g) => weekOf(g.fecha)))];
+  const yaCerradas = new Set(cierresExistentes.map((c) => c.semana));
+  const nuevos = [];
+  for (const ws of semanasConGastos) {
+    if (ws >= todayWS || yaCerradas.has(ws)) continue;
+    const detalle = sobres
+      .filter((s) => !s.es_ahorro)
+      .map((s) => {
+        const gastado = gastos.filter((g) => g.sobre_id === s.id && weekOf(g.fecha) === ws).reduce((a, g) => a + Number(g.monto), 0);
+        const sobrante = s.tipo_cierre === "ahorro" ? Math.max(0, Number(s.aportacion_semanal) - gastado) : 0;
+        return { sobre_id: s.id, nombre: s.nombre, emoji: s.emoji, aportacion: Number(s.aportacion_semanal), gastado, sobrante, tipo_cierre: s.tipo_cierre };
+      });
+    const totalAAhorro = detalle.reduce((a, x) => a + x.sobrante, 0);
+    nuevos.push({ cuenta_id: cuentaId, semana: ws, detalle, total_a_ahorro: totalAAhorro });
+  }
+  if (!nuevos.length) return { nuevos: [], totalAhorrado: 0 };
+  const { data: insertados, error } = await supabase.from("cierres").insert(nuevos).select();
+  if (error) { console.error("Error al cerrar semanas:", error); return { nuevos: [], totalAhorrado: 0 }; }
+  const sobreAhorro = sobres.find((s) => s.es_ahorro);
+  if (sobreAhorro) {
+    const totalAhorrado = nuevos.reduce((a, c) => a + c.total_a_ahorro, 0);
+    if (totalAhorrado > 0) await supabase.from("sobres").update({ saldo_acumulado: Number(sobreAhorro.saldo_acumulado) + totalAhorrado }).eq("id", sobreAhorro.id);
+  }
+  return { nuevos: insertados || [], totalAhorrado: nuevos.reduce((a, c) => a + c.total_a_ahorro, 0) };
+}
+
+/* ============================================================
+   Componentes
+   ============================================================ */
+
+function SobreCard({ sobre, gastado }) {
+  const presup = Number(sobre.aportacion_semanal);
+  const disponible = sobre.tipo_cierre === "acumula" ? Number(sobre.saldo_acumulado) + presup - gastado : presup - gastado;
+  const pct = presup > 0 ? Math.max(0, Math.min(1, disponible / presup)) : 0;
+  const estado = disponible < 0 ? "rojo" : pct <= 0.25 ? "ambar" : "verde";
+  const colorVar = estado === "rojo" ? "var(--red)" : estado === "ambar" ? "var(--amber)" : "var(--green)";
+  const catColor = CAT_COLOR[sobre.categoria_default] || "#666";
+  return (
+    <div className="sobre-card">
+      <div className="sobre-flap" />
+      <div className="px-3 pt-5 pb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{sobre.emoji}</span>
+          <span className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{sobre.nombre}</span>
+        </div>
+        <div className="mt-2 num text-xl font-semibold" style={{ color: colorVar }}>{money(disponible)}</div>
+        <div className="text-xs" style={{ color: "var(--ink-soft)" }}>
+          de {money(presup)}/sem{disponible < 0 ? " · te pasaste" : ""}{sobre.tipo_cierre === "acumula" ? " · acumula" : ""}
+        </div>
+        <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
+          <div className="h-full rounded-full" style={{ width: `${Math.max(0, pct) * 100}%`, background: colorVar, transition: "width .3s" }} />
+        </div>
+        <div className="mt-1.5">
+          <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: catColor + "18", color: catColor }}>
+            {CAT_LABEL[sobre.categoria_default]}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onClose, prefill }) {
+  const hoy = toStr(new Date());
+  const gastables = sobres.filter((s) => !s.es_ahorro);
+  const [monto, setMonto] = useState(prefill?.monto || "");
+  const [sobreId, setSobreId] = useState(prefill?.fuera ? "" : prefill?.sobre_id || gastables[0]?.id || "");
+  const [fueraDeSobres, setFueraDeSobres] = useState(prefill?.fuera || false);
+  const [medio, setMedio] = useState(prefill?.medio_pago || "efectivo");
+  const [tarjetaId, setTarjetaId] = useState(prefill?.tarjeta_id || "");
+  const [categoria, setCategoria] = useState(prefill?.categoria || gastables[0]?.categoria_default || "casa");
+  const [nota, setNota] = useState(prefill?.nota || "");
+  const [fecha, setFecha] = useState(isCurrent ? hoy : viewedWS);
+  const [error, setError] = useState("");
+  const [guardando, setGuardando] = useState(false);
+
+  const dias = [];
+  for (let i = 0; i < 7; i++) { const d = toStr(addDays(fromStr(viewedWS), i)); if (isCurrent && d > hoy) break; dias.push(d); }
+
+  const tarjetasActivas = (tarjetas || []).filter((t) => t.activo);
+
+  const seleccionarSobre = (id) => { setSobreId(id); setFueraDeSobres(false); const s = sobres.find((x) => x.id === id); if (s) setCategoria(s.categoria_default); };
+  const marcarFuera = () => { setFueraDeSobres(true); setSobreId(""); setCategoria("casa"); };
+
+  const submit = async () => {
+    const m = parseFloat(monto);
+    if (!m || m <= 0) return setError("Pon un monto valido.");
+    if (!fueraDeSobres && !sobreId) return setError("Elige un sobre o marca 'Fuera de sobres'.");
+    if (medio === "credito" && !tarjetaId && tarjetasActivas.length > 0) return setError("Elige la tarjeta.");
+    setGuardando(true); setError("");
+    try {
+      await onAdd({ fecha, monto: m, sobre_id: fueraDeSobres ? null : sobreId, medio_pago: medio, tarjeta_id: medio === "credito" && tarjetaId ? tarjetaId : null, categoria, nota: nota.trim() });
+      onClose();
+    } catch (err) { setError(err.message || "Error al guardar."); setGuardando(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-30 flex items-end justify-center" style={{ background: "rgba(34,50,74,.45)" }} onClick={onClose}>
+      <div className="w-full max-w-md rounded-t-2xl p-4 pb-6 overflow-y-auto" style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>Registrar gasto</h2>
+          <button className="text-sm px-2 py-1" style={{ color: "var(--ink-soft)" }} onClick={onClose}>Cerrar</button>
+        </div>
+        <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Cuanto?</label>
+        <input type="number" inputMode="decimal" placeholder="0.00" value={monto} autoFocus onChange={(e) => setMonto(e.target.value)}
+          className="w-full num text-2xl font-semibold rounded-xl px-3 py-2 mb-3 outline-none"
+          style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }} />
+
+        <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>De que sobre sale?</label>
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {gastables.map((s) => (
+            <button key={s.id} onClick={() => seleccionarSobre(s.id)} className="chip"
+              style={!fueraDeSobres && sobreId === s.id ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
+              {s.emoji} {s.nombre}
+            </button>
+          ))}
+          <button onClick={marcarFuera} className="chip" style={fueraDeSobres ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
+            🚫 Fuera de sobres
+          </button>
+        </div>
+
+        <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Categoria</label>
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {CATEGORIAS.map((c) => (
+            <button key={c} onClick={() => setCategoria(c)} className="chip"
+              style={categoria === c ? { background: CAT_COLOR[c], color: "#fff", borderColor: CAT_COLOR[c] } : {}}>
+              {CAT_LABEL[c]}
+            </button>
+          ))}
+        </div>
+
+        <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Medio de pago</label>
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {MEDIOS.map((m) => (
+            <button key={m} onClick={() => { setMedio(m); if (m !== "credito") setTarjetaId(""); }} className="chip"
+              style={medio === m ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
+              {MEDIOS_LABEL[m]}
+            </button>
+          ))}
+        </div>
+
+        {medio === "credito" && tarjetasActivas.length > 0 && (
+          <>
+            <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Tarjeta</label>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {tarjetasActivas.map((t) => (
+                <button key={t.id} onClick={() => setTarjetaId(t.id)} className="chip"
+                  style={tarjetaId === t.id ? { background: "var(--red)", color: "#fff", borderColor: "var(--red)" } : {}}>
+                  💳 {t.nombre}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        <div className="flex gap-2 mb-3">
+          <div className="flex-1">
+            <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Dia</label>
+            <select value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-full rounded-xl px-3 py-2 text-sm"
+              style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }}>
+              {dias.map((d) => <option key={d} value={d}>{fmtDia(d)}</option>)}
+            </select>
+          </div>
+          <div className="flex-1">
+            <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Nota (opcional)</label>
+            <input type="text" placeholder="Walmart, tacos..." value={nota} onChange={(e) => setNota(e.target.value)}
+              className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+              style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }} />
+          </div>
+        </div>
+        {error && <div className="text-xs mb-2" style={{ color: "var(--red)" }}>{error}</div>}
+        <button onClick={submit} disabled={guardando} className="w-full rounded-xl py-3 font-bold text-sm"
+          style={{ background: "var(--green)", color: "#fff", opacity: guardando ? 0.6 : 1 }}>
+          {guardando ? "Guardando..." : "Guardar gasto"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Modal para editar un gasto ---------- */
+function EditGastoModal({ gasto, onSave, onClose }) {
+  const [monto, setMonto] = useState(String(gasto.monto));
+  const [nota, setNota] = useState(gasto.nota || "");
+  const [guardando, setGuardando] = useState(false);
+
+  const submit = async () => {
+    const m = parseFloat(monto);
+    if (!m || m <= 0) return;
+    setGuardando(true);
+    try { await onSave(gasto.id, { monto: m, nota: nota.trim() }); onClose(); }
+    catch { setGuardando(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-30 flex items-center justify-center" style={{ background: "rgba(34,50,74,.45)" }} onClick={onClose}>
+      <div className="w-full max-w-xs rounded-2xl p-4" style={{ background: "var(--card)" }} onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-sm font-bold mb-3" style={{ color: "var(--ink)" }}>Editar gasto</h3>
+        <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Monto</label>
+        <input type="number" inputMode="decimal" value={monto} onChange={(e) => setMonto(e.target.value)} autoFocus
+          className="w-full num text-xl font-semibold rounded-xl px-3 py-2 mb-2 outline-none"
+          style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }} />
+        <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Nota</label>
+        <input type="text" value={nota} onChange={(e) => setNota(e.target.value)}
+          className="w-full rounded-xl px-3 py-2 text-sm mb-3 outline-none"
+          style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }} />
+        <div className="flex gap-2">
+          <button onClick={submit} disabled={guardando} className="flex-1 rounded-xl py-2.5 text-sm font-bold" style={{ background: "var(--green)", color: "#fff" }}>
+            {guardando ? "..." : "Guardar"}
+          </button>
+          <button onClick={onClose} className="px-4 rounded-xl py-2.5 text-sm font-semibold" style={{ color: "var(--ink-soft)" }}>Cancelar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Tab Semana (F2 completo) ---------- */
+function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemanal, offset, setOffset, onAdd, onDelete, onEditGasto, onPagar, onPosponer, onPagarTarjeta }) {
+  const [showForm, setShowForm] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [editingGasto, setEditingGasto] = useState(null);
+  const [filtro, setFiltro] = useState("todos");
+
+  const hoy = new Date();
+  const viewedWS = toStr(addDays(weekStartOf(hoy), offset * 7));
+  const isCurrent = offset === 0;
+  const cierre = cierres.find((c) => c.semana === viewedWS);
+  const gastables = sobres.filter((s) => !s.es_ahorro);
+
+  const gastosSemana = gastos
+    .filter((g) => weekOf(g.fecha) === viewedWS)
+    .sort((a, b) => (a.fecha === b.fecha ? new Date(b.creado_en) - new Date(a.creado_en) : a.fecha < b.fecha ? 1 : -1));
+
+  const gastosFiltrados = gastosSemana.filter((g) => {
+    if (filtro === "sobres") return g.sobre_id != null;
+    if (filtro === "fuera") return g.sobre_id == null;
+    return true;
+  });
+
+  const gastadoPor = (id) => gastosSemana.filter((g) => g.sobre_id === id).reduce((a, g) => a + Number(g.monto), 0);
+  const gastadoTotal = gastosSemana.reduce((a, g) => a + Number(g.monto), 0);
+  const restanteTotal = presupSemanal - gastadoTotal;
+
+  const porDia = gastosFiltrados.reduce((acc, g) => { (acc[g.fecha] = acc[g.fecha] || []).push(g); return acc; }, {});
+  const sobreDe = (id) => sobres.find((s) => s.id === id);
+  const tarjetaDe = (id) => (tarjetas || []).find((t) => t.id === id);
+  const pagosProximos = isCurrent ? getPagosProximos(pagos) : [];
+  const tarjetasProximas = isCurrent ? getTarjetaRecordatorios(tarjetas || [], pagos) : [];
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <button className="nav-arrow" onClick={() => setOffset(offset - 1)}>‹</button>
+        <div className="text-center">
+          <div className="text-sm font-bold" style={{ color: "var(--ink)" }}>{weekLabel(viewedWS)}</div>
+          <div className="text-xs" style={{ color: "var(--ink-soft)" }}>
+            {isCurrent ? "Semana actual" : cierre ? "Semana cerrada" : "Semana pasada"}
+          </div>
+        </div>
+        <button className="nav-arrow" onClick={() => setOffset(Math.min(0, offset + 1))} style={offset === 0 ? { opacity: 0.25 } : {}}>›</button>
+      </div>
+
+      {/* Resumen con desglose por categoria */}
+      <div className="rounded-2xl p-4 mb-3" style={{ background: "var(--ink)" }}>
+        <div className="text-xs font-semibold" style={{ color: "rgba(255,255,255,.65)" }}>
+          {isCurrent ? "Te queda esta semana" : "Quedo esta semana"}
+        </div>
+        <div className="num text-3xl font-bold" style={{ color: restanteTotal < 0 ? "#FFB4A0" : "#fff" }}>{money(restanteTotal)}</div>
+        <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,.65)" }}>
+          Gastado {money(gastadoTotal)} de {money(presupSemanal)} · {gastosSemana.length} gasto{gastosSemana.length === 1 ? "" : "s"}
+        </div>
+        {gastadoTotal > 0 && (
+          <>
+            <div className="flex gap-0.5 mt-2 h-2 rounded-full overflow-hidden">
+              {CATEGORIAS.map((c) => {
+                const m = gastosSemana.filter((g) => g.categoria === c).reduce((a, g) => a + Number(g.monto), 0);
+                if (!m) return null;
+                return <div key={c} style={{ width: `${(m / gastadoTotal) * 100}%`, background: CAT_COLOR[c] }} />;
+              })}
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+              {CATEGORIAS.map((c) => {
+                const m = gastosSemana.filter((g) => g.categoria === c).reduce((a, g) => a + Number(g.monto), 0);
+                if (!m) return null;
+                return (
+                  <span key={c} className="text-[10px]" style={{ color: "rgba(255,255,255,.75)" }}>
+                    <span className="inline-block w-1.5 h-1.5 rounded-full mr-0.5 align-middle" style={{ background: CAT_COLOR[c] }} />
+                    {CAT_LABEL[c]} {money(m)}
+                  </span>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Recordatorios de tarjetas */}
+      {tarjetasProximas.map((t) => {
+        const est = calcEstimadoTarjeta(t, gastos, msi);
+        return (
+          <div key={t.id} className="rounded-xl px-3 py-2.5 mb-2 flex items-center gap-2" style={{ background: "#FEF3C7", border: "1px solid #FDE68A" }}>
+            <span className="text-lg">💳</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Pago {t.nombre}</div>
+              <div className="text-xs" style={{ color: "var(--ink-soft)" }}>
+                Dia {t.dia_pago}{est && est.total > 0 ? ` · MSI: ${money(est.total)}` : ""}
+              </div>
+            </div>
+            <button onClick={() => onPagarTarjeta(t, est)} className="text-xs font-bold px-2.5 py-1.5 rounded-lg" style={{ background: "var(--green)", color: "#fff" }}>Ya pague</button>
+          </div>
+        );
+      })}
+
+      {/* Recordatorios de pagos regulares */}
+      {pagosProximos.map((p) => (
+        <div key={p.id} className="rounded-xl px-3 py-2.5 mb-2 flex items-center gap-2" style={{ background: "#FFF7ED", border: "1px solid #FED7AA" }}>
+          <span className="text-lg">🔔</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{p.nombre}</div>
+            <div className="text-xs" style={{ color: "var(--ink-soft)" }}>
+              {money(Number(p.monto_estimado))} · {FREQ_LABEL[p.frecuencia] || "Mensual"}{p.dia_pago ? ` · dia ${p.dia_pago}` : ""}
+            </div>
+          </div>
+          <button onClick={() => onPagar(p)} className="text-xs font-bold px-2.5 py-1.5 rounded-lg" style={{ background: "var(--green)", color: "#fff" }}>Ya pague</button>
+          <button onClick={() => onPosponer(p.id)} className="text-xs font-semibold px-2 py-1.5 rounded-lg" style={{ color: "var(--ink-soft)", border: "1px solid var(--line)" }}>Luego</button>
+        </div>
+      ))}
+
+      {cierre && (
+        <div className="rounded-xl px-3 py-2 mb-3 text-sm font-semibold" style={{ background: "#E7F3EC", color: "var(--green)" }}>
+          💰 {money(cierre.total_a_ahorro)} pasaron al Ahorro al cerrar
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        {gastables.map((s) => <SobreCard key={s.id} sobre={s} gastado={gastadoPor(s.id)} />)}
+      </div>
+
+      {isCurrent && (
+        <button onClick={() => setShowForm(true)} className="w-full rounded-xl py-3 font-bold text-sm mb-4" style={{ background: "var(--green)", color: "#fff" }}>
+          + Registrar gasto
+        </button>
+      )}
+
+      {/* Libreta con filtro */}
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--ink-soft)" }}>Libreta de la semana</h3>
+        <div className="flex gap-1">
+          {[["todos", "Todos"], ["sobres", "Sobres"], ["fuera", "Fuera"]].map(([v, l]) => (
+            <button key={v} onClick={() => setFiltro(v)} className="text-[10px] font-semibold px-2 py-1 rounded-full"
+              style={filtro === v ? { background: "var(--ink)", color: "#fff" } : { background: "var(--line)", color: "var(--ink)" }}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {gastosFiltrados.length === 0 && (
+        <div className="text-sm py-6 text-center" style={{ color: "var(--ink-soft)" }}>
+          Sin gastos{filtro !== "todos" ? " en este filtro" : " registrados"}.{isCurrent && filtro === "todos" ? " Registra el primero arriba." : ""}
+        </div>
+      )}
+      {Object.keys(porDia).map((dia) => (
+        <div key={dia} className="mb-3">
+          <div className="text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>{fmtDia(dia)}</div>
+          {porDia[dia].map((g) => {
+            const s = sobreDe(g.sobre_id);
+            const tc = tarjetaDe(g.tarjeta_id);
+            const catColor = CAT_COLOR[g.categoria] || "#666";
+            return (
+              <div key={g.id} className="flex items-center gap-2 rounded-xl px-3 py-2 mb-1" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+                <span>{s ? s.emoji : "🚫"}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{g.nota || (s ? s.nombre : "Fuera de sobres")}</span>
+                    <span className="inline-block text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ background: catColor + "18", color: catColor }}>
+                      {CAT_LABEL[g.categoria]}
+                    </span>
+                  </div>
+                  <div className="text-xs" style={{ color: "var(--ink-soft)" }}>
+                    {s ? s.nombre + " · " : "Fuera · "}{MEDIOS_LABEL[g.medio_pago]}
+                    {tc ? ` · 💳 ${tc.nombre}` : ""}
+                  </div>
+                </div>
+                <div className="num text-sm font-semibold" style={{ color: "var(--ink)" }}>{money(Number(g.monto))}</div>
+                <button className="text-xs px-1 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => setEditingGasto(g)}>✎</button>
+                {isCurrent && (pendingDelete === g.id ? (
+                  <button className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: "var(--red)", color: "#fff" }}
+                    onClick={() => { onDelete(g.id); setPendingDelete(null); }}>Borrar?</button>
+                ) : (
+                  <button className="text-xs px-1 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => setPendingDelete(g.id)}>✕</button>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+
+      {showForm && <GastoForm sobres={sobres} tarjetas={tarjetas} viewedWS={viewedWS} isCurrent={isCurrent} onAdd={onAdd} onClose={() => setShowForm(false)} />}
+      {editingGasto && <EditGastoModal gasto={editingGasto} onSave={onEditGasto} onClose={() => setEditingGasto(null)} />}
+    </div>
+  );
+}
+
+/* ---------- Tab Sobres ---------- */
+function TabSobres({ sobres, gastos, presupSemanal, onSaveSobre, onDeleteSobre, onSavePresup }) {
+  const [editing, setEditing] = useState(null);
+  const [nombre, setNombre] = useState("");
+  const [emoji, setEmoji] = useState(EMOJIS[0]);
+  const [aportacion, setAportacion] = useState("");
+  const [tipoCierre, setTipoCierre] = useState("ahorro");
+  const [catDefault, setCatDefault] = useState("casa");
+  const [saldoInicial, setSaldoInicial] = useState("0");
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [msg, setMsg] = useState("");
+  const [editPresup, setEditPresup] = useState(false);
+  const [tempPresup, setTempPresup] = useState(String(presupSemanal));
+
+  const gastables = sobres.filter((s) => !s.es_ahorro);
+  const sumaSobres = sobres.reduce((a, s) => a + Number(s.aportacion_semanal), 0);
+
+  const startEdit = (s) => { setEditing(s.id); setNombre(s.nombre); setEmoji(s.emoji); setAportacion(String(s.aportacion_semanal)); setTipoCierre(s.tipo_cierre); setCatDefault(s.categoria_default); setMsg(""); };
+  const startNew = () => { setEditing("nuevo"); setNombre(""); setEmoji(EMOJIS[0]); setAportacion(""); setTipoCierre("ahorro"); setCatDefault("casa"); setSaldoInicial("0"); setMsg(""); };
+  const cancel = () => setEditing(null);
+
+  const save = async () => {
+    const p = parseFloat(aportacion);
+    if (!nombre.trim()) return setMsg("Ponle nombre al sobre.");
+    if (isNaN(p) || p < 0) return setMsg("Aportacion invalida.");
+    try {
+      const payload = { id: editing === "nuevo" ? undefined : editing, nombre: nombre.trim(), emoji, aportacion_semanal: p, tipo_cierre: tipoCierre, categoria_default: catDefault };
+      if (editing === "nuevo") payload.saldo_inicial = parseFloat(saldoInicial) || 0;
+      await onSaveSobre(payload);
+      setEditing(null);
+    } catch (err) { setMsg(err.message || "Error al guardar."); }
+  };
+
+  const tryDelete = async (id) => {
+    const tieneGastos = gastos.some((g) => g.sobre_id === id);
+    if (tieneGastos) { setMsg("Ese sobre tiene gastos registrados; no se puede eliminar."); setPendingDelete(null); return; }
+    if (pendingDelete !== id) { setPendingDelete(id); return; }
+    try { await onDeleteSobre(id); setPendingDelete(null); } catch (err) { setMsg(err.message || "Error al eliminar."); }
+  };
+
+  const guardarPresup = async () => { const v = parseFloat(tempPresup); if (isNaN(v) || v <= 0) return; await onSavePresup(v); setEditPresup(false); };
+
+  const formRow = (
+    <div className="rounded-xl p-3 mb-2" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+      <div className="flex flex-wrap gap-1 mb-2">
+        {EMOJIS.map((e) => (
+          <button key={e} onClick={() => setEmoji(e)} className="text-lg px-1.5 py-0.5 rounded-lg" style={emoji === e ? { background: "var(--line)" } : {}}>{e}</button>
+        ))}
+      </div>
+      <div className="flex gap-2 mb-2">
+        <input type="text" placeholder="Nombre del sobre" value={nombre} onChange={(e) => setNombre(e.target.value)}
+          className="flex-1 rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+        <input type="number" inputMode="decimal" placeholder="$/sem" value={aportacion} onChange={(e) => setAportacion(e.target.value)}
+          className="w-24 num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+      </div>
+      <div className="flex gap-2 mb-2">
+        <select value={tipoCierre} onChange={(e) => setTipoCierre(e.target.value)} className="flex-1 rounded-xl px-3 py-2 text-sm" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }}>
+          <option value="ahorro">Ahorro (reinicia)</option>
+          <option value="acumula">Acumula (arrastra)</option>
+        </select>
+        <select value={catDefault} onChange={(e) => setCatDefault(e.target.value)} className="flex-1 rounded-xl px-3 py-2 text-sm" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }}>
+          {CATEGORIAS.map((c) => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
+        </select>
+      </div>
+      {editing === "nuevo" && (
+        <div className="mb-2">
+          <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Saldo inicial</label>
+          <input type="number" inputMode="decimal" placeholder="0" value={saldoInicial} onChange={(e) => setSaldoInicial(e.target.value)}
+            className="w-full num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+        </div>
+      )}
+      {msg && <div className="text-xs mb-2" style={{ color: "var(--red)" }}>{msg}</div>}
+      <div className="flex gap-2">
+        <button onClick={save} className="flex-1 rounded-xl py-2 text-sm font-bold" style={{ background: "var(--green)", color: "#fff" }}>Guardar</button>
+        <button onClick={cancel} className="px-4 rounded-xl py-2 text-sm font-semibold" style={{ color: "var(--ink-soft)" }}>Cancelar</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div>
+      <div className="rounded-xl px-3 py-3 mb-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-xs font-semibold" style={{ color: "var(--ink-soft)" }}>Presupuesto semanal</div>
+            {editPresup ? (
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-sm" style={{ color: "var(--ink)" }}>$</span>
+                <input type="number" inputMode="decimal" value={tempPresup} onChange={(e) => setTempPresup(e.target.value)} autoFocus
+                  className="num text-lg font-bold w-28 rounded-lg px-2 py-1 outline-none" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }} />
+                <button onClick={guardarPresup} className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: "var(--green)", color: "#fff" }}>OK</button>
+                <button onClick={() => setEditPresup(false)} className="text-xs px-2 py-1" style={{ color: "var(--ink-soft)" }}>✕</button>
+              </div>
+            ) : (
+              <div className="num text-xl font-bold" style={{ color: "var(--ink)" }}>{money(presupSemanal)}</div>
+            )}
+          </div>
+          {!editPresup && (
+            <button onClick={() => { setTempPresup(String(presupSemanal)); setEditPresup(true); }} className="text-xs font-semibold px-2 py-1" style={{ color: "var(--ink-soft)" }}>Editar</button>
+          )}
+        </div>
+        <div className="text-xs mt-1" style={{ color: "var(--ink-soft)" }}>Suma de sobres: <span className="num font-semibold">{money(sumaSobres)}</span></div>
+      </div>
+
+      <h2 className="text-base font-bold mb-3" style={{ color: "var(--ink)" }}>Mis sobres</h2>
+      {msg && editing === null && <div className="text-xs mb-2 rounded-xl px-3 py-2" style={{ background: "#FBEAE5", color: "var(--red)" }}>{msg}</div>}
+
+      {gastables.map((s) => editing === s.id ? <div key={s.id}>{formRow}</div> : (
+        <div key={s.id} className="flex items-center gap-2 rounded-xl px-3 py-2.5 mb-2" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+          <span className="text-lg">{s.emoji}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{s.nombre}</span>
+              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: CAT_COLOR[s.categoria_default] + "18", color: CAT_COLOR[s.categoria_default] }}>{CAT_LABEL[s.categoria_default]}</span>
+            </div>
+            <div className="text-xs num" style={{ color: "var(--ink-soft)" }}>{money(Number(s.aportacion_semanal))} / sem · {s.tipo_cierre === "acumula" ? "acumula" : "ahorro"}</div>
+          </div>
+          <button className="text-xs font-semibold px-2 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => startEdit(s)}>Editar</button>
+          <button className="text-xs px-2 py-1 rounded-lg font-semibold" style={pendingDelete === s.id ? { background: "var(--red)", color: "#fff" } : { color: "var(--ink-soft)" }} onClick={() => tryDelete(s.id)}>
+            {pendingDelete === s.id ? "Seguro?" : "✕"}
+          </button>
+        </div>
+      ))}
+
+      {editing === "nuevo" ? formRow : (
+        <button onClick={startNew} className="w-full rounded-xl py-2.5 text-sm font-bold mt-1" style={{ border: "1.5px dashed var(--ink-soft)", color: "var(--ink)" }}>+ Agregar sobre</button>
+      )}
+      <p className="text-xs mt-4 leading-relaxed" style={{ color: "var(--ink-soft)" }}>
+        🐷 El sobre Ahorro recibe automaticamente lo que sobra de los sobres tipo "ahorro". Los tipo "acumula" arrastran su saldo.
+      </p>
+    </div>
+  );
+}
+
+/* ---------- Tab Ahorro ---------- */
+function TabAhorro({ sobres, cierres }) {
+  const [open, setOpen] = useState(null);
+  const cierresOrden = [...cierres].sort((a, b) => (a.semana < b.semana ? 1 : -1));
+  const sobreAhorro = sobres.find((s) => s.es_ahorro);
+  const saldoAhorro = sobreAhorro ? Number(sobreAhorro.saldo_acumulado) : cierresOrden.reduce((a, c) => a + Number(c.total_a_ahorro), 0);
+
+  return (
+    <div>
+      <div className="rounded-2xl p-5 mb-4 text-center" style={{ background: "var(--green)" }}>
+        <div className="text-xs font-semibold" style={{ color: "rgba(255,255,255,.75)" }}>🐷 Ahorro acumulado</div>
+        <div className="num text-4xl font-bold text-white mt-1">{money(saldoAhorro)}</div>
+        <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,.75)" }}>
+          {cierresOrden.length} semana{cierresOrden.length === 1 ? "" : "s"} cerrada{cierresOrden.length === 1 ? "" : "s"}
+          {sobreAhorro ? ` · +${money(Number(sobreAhorro.aportacion_semanal))}/sem` : ""}
+        </div>
+      </div>
+      {cierresOrden.length === 0 && <div className="text-sm text-center py-6 leading-relaxed" style={{ color: "var(--ink-soft)" }}>Aun no hay semanas cerradas.<br />Cuando termine el viernes, lo que sobre caera aqui solito.</div>}
+      {cierresOrden.map((c) => {
+        const detalle = Array.isArray(c.detalle) ? c.detalle : [];
+        return (
+          <div key={c.semana} className="rounded-xl mb-2 overflow-hidden" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+            <button className="w-full flex items-center justify-between px-3 py-2.5" onClick={() => setOpen(open === c.semana ? null : c.semana)}>
+              <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{weekLabel(c.semana)}</span>
+              <span className="num text-sm font-bold" style={{ color: "var(--green)" }}>+{money(Number(c.total_a_ahorro))}</span>
+            </button>
+            {open === c.semana && (
+              <div className="px-3 pb-3">
+                {detalle.map((d, i) => (
+                  <div key={d.sobre_id || i} className="flex items-center justify-between text-xs py-1" style={{ color: "var(--ink-soft)" }}>
+                    <span>{d.emoji} {d.nombre} — gasto {money(d.gastado)} de {money(d.aportacion || d.presupuesto)}{d.tipo_cierre === "acumula" ? " (acumula)" : ""}</span>
+                    <span className="num font-semibold" style={{ color: d.sobrante > 0 ? "var(--green)" : "var(--ink-soft)" }}>+{money(d.sobrante)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------- Tab Pagos (F3 + F4 + Tarjetas) ---------- */
+function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePago, onPagar, onSaveMSI, onDeleteMSI, onSaveTarjeta, onDeleteTarjeta, onPagarTarjeta }) {
+  const [editing, setEditing] = useState(null);
+  const [nombre, setNombre] = useState(""); const [monto, setMonto] = useState(""); const [diaPago, setDiaPago] = useState("");
+  const [frecuencia, setFrecuencia] = useState("mensual"); const [medio, setMedio] = useState("debito");
+  const [sobreId, setSobreId] = useState(""); const [categoria, setCategoria] = useState("casa");
+  const [msg, setMsg] = useState(""); const [pendingDel, setPendingDel] = useState(null);
+
+  const [editMSI, setEditMSI] = useState(null);
+  const [msiConcepto, setMsiConcepto] = useState(""); const [msiMonto, setMsiMonto] = useState(""); const [msiTarjetaId, setMsiTarjetaId] = useState("");
+  const [msiMeses, setMsiMeses] = useState(""); const [msiFecha, setMsiFecha] = useState(""); const [msiPrimer, setMsiPrimer] = useState("");
+  const [msiMsg, setMsiMsg] = useState("");
+
+  const [editTarjeta, setEditTarjeta] = useState(null);
+  const [tNombre, setTNombre] = useState(""); const [tBanco, setTBanco] = useState("");
+  const [tUltimos4, setTUltimos4] = useState(""); const [tDiaCorte, setTDiaCorte] = useState("");
+  const [tDiaPago, setTDiaPago] = useState(""); const [tMsg, setTMsg] = useState("");
+
+  const gastables = sobres.filter((s) => !s.es_ahorro);
+  const pagosNoTarjeta = pagos.filter((p) => p.activo && !p.tarjeta_id);
+  const totalMensual = pagosNoTarjeta.reduce((a, p) => a + Number(p.monto_estimado) * (p.frecuencia === "semanal" ? 4 : p.frecuencia === "quincenal" ? 2 : 1), 0);
+  const tarjetasActivas = (tarjetas || []).filter((t) => t.activo);
+
+  const startEditPago = (p) => { setEditing(p.id); setNombre(p.nombre); setMonto(String(p.monto_estimado)); setDiaPago(p.dia_pago != null ? String(p.dia_pago) : ""); setFrecuencia(p.frecuencia || "mensual"); setMedio(p.medio_pago || "debito"); setSobreId(p.destino_sobre_id || ""); setCategoria(p.categoria); setMsg(""); };
+  const startNewPago = () => { setEditing("nuevo"); setNombre(""); setMonto(""); setDiaPago(""); setFrecuencia("mensual"); setMedio("debito"); setSobreId(""); setCategoria("casa"); setMsg(""); };
+  const savePago = async () => {
+    if (!nombre.trim()) return setMsg("Ponle nombre."); const m = parseFloat(monto); if (isNaN(m) || m <= 0) return setMsg("Monto invalido.");
+    try { await onSavePago({ id: editing === "nuevo" ? undefined : editing, nombre: nombre.trim(), monto_estimado: m, dia_pago: diaPago ? parseInt(diaPago) : null, frecuencia, medio_pago: medio, destino_sobre_id: sobreId || null, categoria, activo: true }); setEditing(null); }
+    catch (err) { setMsg(err.message || "Error al guardar."); }
+  };
+  const tryDeletePago = async (id) => { if (pendingDel !== id) { setPendingDel(id); return; } try { await onDeletePago(id); setPendingDel(null); } catch (err) { setMsg(err.message); } };
+
+  const startEditTarjeta = (t) => { setEditTarjeta(t.id); setTNombre(t.nombre); setTBanco(t.banco || ""); setTUltimos4(t.ultimos4 || ""); setTDiaCorte(t.dia_corte != null ? String(t.dia_corte) : ""); setTDiaPago(t.dia_pago != null ? String(t.dia_pago) : ""); setTMsg(""); };
+  const startNewTarjeta = () => { setEditTarjeta("nuevo"); setTNombre(""); setTBanco(""); setTUltimos4(""); setTDiaCorte(""); setTDiaPago(""); setTMsg(""); };
+  const saveTarjeta = async () => {
+    if (!tNombre.trim()) return setTMsg("Ponle nombre.");
+    try {
+      await onSaveTarjeta({
+        id: editTarjeta === "nuevo" ? undefined : editTarjeta,
+        nombre: tNombre.trim(), banco: tBanco.trim() || null, ultimos4: tUltimos4.trim() || null,
+        dia_corte: tDiaCorte ? parseInt(tDiaCorte) : null, dia_pago: tDiaPago ? parseInt(tDiaPago) : null, activo: true,
+      });
+      setEditTarjeta(null);
+    } catch (err) { setTMsg(err.message || "Error al guardar."); }
+  };
+
+  const startEditMSIItem = (m) => { setEditMSI(m.id); setMsiConcepto(m.concepto); setMsiMonto(String(m.monto_total)); setMsiTarjetaId(m.tarjeta_id || ""); setMsiMeses(String(m.num_meses)); setMsiFecha(m.fecha_compra); setMsiPrimer(m.mes_primer_pago); setMsiMsg(""); };
+  const startNewMSI = () => { setEditMSI("nuevo"); setMsiConcepto(""); setMsiMonto(""); setMsiTarjetaId(tarjetasActivas[0]?.id || ""); setMsiMeses(""); setMsiFecha(toStr(new Date())); setMsiPrimer(""); setMsiMsg(""); };
+  const saveMSI = async () => {
+    if (!msiConcepto.trim()) return setMsiMsg("Ponle nombre."); const m = parseFloat(msiMonto); if (isNaN(m) || m <= 0) return setMsiMsg("Monto invalido.");
+    const meses = parseInt(msiMeses); if (isNaN(meses) || meses <= 0) return setMsiMsg("Meses invalido.");
+    if (!msiFecha || !msiPrimer) return setMsiMsg("Fechas requeridas.");
+    if (!msiTarjetaId) return setMsiMsg("Elige la tarjeta.");
+    const tarjeta = tarjetasActivas.find((t) => t.id === msiTarjetaId);
+    try { await onSaveMSI({ id: editMSI === "nuevo" ? undefined : editMSI, concepto: msiConcepto.trim(), monto_total: m, tarjeta: tarjeta?.nombre || "", tarjeta_id: msiTarjetaId, num_meses: meses, fecha_compra: msiFecha, mes_primer_pago: msiPrimer, activo: true }); setEditMSI(null); }
+    catch (err) { setMsiMsg(err.message || "Error al guardar."); }
+  };
+
+  const msiActivos = msi.filter((m) => m.activo);
+  const cargaMSI = msiActivos.reduce((a, m) => { const s = calcMSI(m); return s.estatus === "activo" ? a + s.mensual : a; }, 0);
+
+  return (
+    <div>
+      {/* === TARJETAS === */}
+      <h2 className="text-base font-bold mb-1" style={{ color: "var(--ink)" }}>💳 Mis tarjetas</h2>
+      <div className="text-xs mb-3" style={{ color: "var(--ink-soft)" }}>Carga MSI mensual: <span className="num font-semibold">{money(cargaMSI)}</span></div>
+
+      {tarjetasActivas.map((t) => {
+        if (editTarjeta === t.id) return <div key={t.id}>{tarjetaForm()}</div>;
+        const est = calcEstimadoTarjeta(t, gastos, msi);
+        return (
+          <div key={t.id} className="rounded-xl px-3 py-3 mb-2" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-bold" style={{ color: "var(--ink)" }}>{t.nombre}</span>
+                  {t.banco && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--line)", color: "var(--ink-soft)" }}>{t.banco}</span>}
+                  {t.ultimos4 && <span className="text-[10px] num" style={{ color: "var(--ink-soft)" }}>•{t.ultimos4}</span>}
+                </div>
+                <div className="text-xs num mt-0.5" style={{ color: "var(--ink-soft)" }}>
+                  {t.dia_corte ? `Corte: dia ${t.dia_corte}` : "Sin corte"} · {t.dia_pago ? `Pago: dia ${t.dia_pago}` : "Sin pago"}
+                </div>
+              </div>
+              <div className="flex gap-1">
+                <button className="text-xs px-1.5 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => startEditTarjeta(t)}>✎</button>
+                <button className="text-xs px-1.5 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => onDeleteTarjeta(t.id)}>✕</button>
+              </div>
+            </div>
+
+            {est.total > 0 && (
+              <div className="mt-2 rounded-lg px-2.5 py-2" style={{ background: "var(--paper)" }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold" style={{ color: "var(--ink)" }}>A pagar (MSI)</span>
+                  <span className="num text-sm font-bold" style={{ color: "var(--ink)" }}>{money(est.total)}</span>
+                </div>
+                <div className="text-[10px] mt-0.5" style={{ color: "var(--ink-soft)" }}>
+                  {est.numMSI} compra{est.numMSI === 1 ? "" : "s"} a meses activa{est.numMSI === 1 ? "" : "s"}
+                </div>
+              </div>
+            )}
+            {est.total === 0 && (
+              <div className="text-[10px] mt-1.5" style={{ color: "var(--ink-soft)" }}>Sin MSI activos</div>
+            )}
+
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => onPagarTarjeta(t, est)} className="flex-1 rounded-lg py-2 text-xs font-bold" style={{ background: "var(--green)", color: "#fff" }}>
+                Ya pague {est.total > 0 ? money(est.total) : ""}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+      {editTarjeta === "nuevo" && tarjetaForm()}
+      {editTarjeta !== "nuevo" && <button onClick={startNewTarjeta} className="w-full rounded-xl py-2 text-sm font-bold mt-1 mb-6" style={{ border: "1.5px dashed var(--ink-soft)", color: "var(--ink)" }}>+ Agregar tarjeta</button>}
+
+      {/* === PAGOS RECURRENTES (sin tarjetas) === */}
+      <h2 className="text-base font-bold mb-1" style={{ color: "var(--ink)" }}>🔄 Pagos recurrentes</h2>
+      <div className="text-xs mb-3" style={{ color: "var(--ink-soft)" }}>Carga mensual: <span className="num font-semibold">{money(totalMensual)}</span></div>
+
+      {pagosNoTarjeta.map((p) => editing === p.id ? <div key={p.id}>{pagoForm()}</div> : (
+        <div key={p.id} className="rounded-xl px-3 py-2.5 mb-2" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{p.nombre}</span>
+                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: CAT_COLOR[p.categoria] + "18", color: CAT_COLOR[p.categoria] }}>{CAT_LABEL[p.categoria]}</span>
+              </div>
+              <div className="text-xs num" style={{ color: "var(--ink-soft)" }}>
+                {money(Number(p.monto_estimado))} · {FREQ_LABEL[p.frecuencia] || "Mensual"}{p.dia_pago ? ` · dia ${p.dia_pago}` : ""}
+                {p.destino_sobre_id ? ` → ${sobres.find((s) => s.id === p.destino_sobre_id)?.nombre || ""}` : " → Fuera"}
+              </div>
+            </div>
+            <button onClick={() => onPagar(p)} className="text-[10px] font-bold px-2 py-1.5 rounded-lg" style={{ background: "var(--green)", color: "#fff" }}>Pague</button>
+            <button className="text-xs px-1.5 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => startEditPago(p)}>✎</button>
+            <button className="text-xs px-1.5 py-1 rounded-lg" style={pendingDel === p.id ? { background: "var(--red)", color: "#fff" } : { color: "var(--ink-soft)" }} onClick={() => tryDeletePago(p.id)}>
+              {pendingDel === p.id ? "?" : "✕"}
+            </button>
+          </div>
+        </div>
+      ))}
+      {editing === "nuevo" && pagoForm()}
+      {editing !== "nuevo" && <button onClick={startNewPago} className="w-full rounded-xl py-2 text-sm font-bold mt-1 mb-6" style={{ border: "1.5px dashed var(--ink-soft)", color: "var(--ink)" }}>+ Agregar pago</button>}
+
+      {/* === COMPRAS MSI === */}
+      <h2 className="text-base font-bold mb-1" style={{ color: "var(--ink)" }}>📅 Compras a meses (MSI)</h2>
+      <div className="text-xs mb-3" style={{ color: "var(--ink-soft)" }}>Carga mensual activa: <span className="num font-semibold">{money(cargaMSI)}</span></div>
+
+      {msiActivos.map((m) => {
+        const st = calcMSI(m);
+        const tarjeta = tarjetasActivas.find((t) => t.id === m.tarjeta_id);
+        if (editMSI === m.id) return <div key={m.id}>{msiForm()}</div>;
+        return (
+          <div key={m.id} className="rounded-xl px-3 py-2.5 mb-2" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{m.concepto}</div>
+                <div className="text-xs num" style={{ color: "var(--ink-soft)" }}>
+                  {money(Number(m.monto_total))} en {m.num_meses} meses
+                  {tarjeta ? ` · 💳 ${tarjeta.nombre}` : m.tarjeta ? ` · ${m.tarjeta}` : ""}
+                </div>
+              </div>
+              <div className="flex gap-1">
+                <button className="text-xs px-1.5 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => startEditMSIItem(m)}>✎</button>
+                <button className="text-xs px-1.5 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => onDeleteMSI(m.id)}>✕</button>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-1.5">
+              <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
+                <div className="h-full rounded-full" style={{ width: `${(st.pagados / st.meses) * 100}%`, background: st.estatus === "liquidado" ? "var(--green)" : "var(--amber)", transition: "width .3s" }} />
+              </div>
+              <span className="text-[10px] font-semibold num" style={{ color: st.estatus === "liquidado" ? "var(--green)" : "var(--ink-soft)" }}>
+                {st.estatus === "liquidado" ? "Liquidado" : st.estatus === "pendiente" ? "Pendiente" : `${st.pagados}/${st.meses}`}
+              </span>
+            </div>
+            {st.estatus === "activo" && (
+              <div className="text-[10px] mt-1 num" style={{ color: "var(--ink-soft)" }}>
+                {money(st.mensual)}/mes · Resta {money(st.restante)}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {editMSI === "nuevo" && msiForm()}
+      {editMSI !== "nuevo" && <button onClick={startNewMSI} className="w-full rounded-xl py-2 text-sm font-bold mt-1" style={{ border: "1.5px dashed var(--ink-soft)", color: "var(--ink)" }}>+ Agregar compra MSI</button>}
+    </div>
+  );
+
+  function tarjetaForm() {
+    return (
+      <div className="rounded-xl p-3 mb-2" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+        <div className="flex gap-2 mb-2">
+          <input type="text" placeholder="Nombre (ej: BBVA Azul)" value={tNombre} onChange={(e) => setTNombre(e.target.value)} className="flex-1 rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+          <input type="text" placeholder="Banco" value={tBanco} onChange={(e) => setTBanco(e.target.value)} className="w-28 rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+        </div>
+        <div className="flex gap-2 mb-2">
+          <input type="text" placeholder="Ultimos 4" value={tUltimos4} onChange={(e) => setTUltimos4(e.target.value)} maxLength={4} className="w-24 num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+          <input type="number" inputMode="numeric" placeholder="Dia corte" value={tDiaCorte} onChange={(e) => setTDiaCorte(e.target.value)} className="flex-1 num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+          <input type="number" inputMode="numeric" placeholder="Dia pago" value={tDiaPago} onChange={(e) => setTDiaPago(e.target.value)} className="flex-1 num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+        </div>
+        {tMsg && <div className="text-xs mb-2" style={{ color: "var(--red)" }}>{tMsg}</div>}
+        <div className="flex gap-2">
+          <button onClick={saveTarjeta} className="flex-1 rounded-xl py-2 text-sm font-bold" style={{ background: "var(--green)", color: "#fff" }}>Guardar</button>
+          <button onClick={() => setEditTarjeta(null)} className="px-4 rounded-xl py-2 text-sm font-semibold" style={{ color: "var(--ink-soft)" }}>Cancelar</button>
+        </div>
+      </div>
+    );
+  }
+
+  function pagoForm() {
+    return (
+      <div className="rounded-xl p-3 mb-2" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+        <div className="flex gap-2 mb-2">
+          <input type="text" placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} className="flex-1 rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+          <input type="number" inputMode="decimal" placeholder="Monto" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-24 num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+        </div>
+        <div className="flex gap-2 mb-2">
+          <select value={frecuencia} onChange={(e) => setFrecuencia(e.target.value)} className="flex-1 rounded-xl px-3 py-2 text-sm" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }}>
+            <option value="semanal">Semanal</option><option value="quincenal">Quincenal</option><option value="mensual">Mensual</option>
+          </select>
+          {frecuencia !== "semanal" && <input type="number" inputMode="numeric" placeholder="Dia mes" value={diaPago} onChange={(e) => setDiaPago(e.target.value)} className="w-24 num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />}
+        </div>
+        <div className="flex gap-2 mb-2">
+          <select value={medio} onChange={(e) => setMedio(e.target.value)} className="flex-1 rounded-xl px-3 py-2 text-sm" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }}>
+            {MEDIOS.map((m) => <option key={m} value={m}>{MEDIOS_LABEL[m]}</option>)}
+          </select>
+          <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className="flex-1 rounded-xl px-3 py-2 text-sm" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }}>
+            {CATEGORIAS.map((c) => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
+          </select>
+        </div>
+        <div className="mb-2">
+          <select value={sobreId} onChange={(e) => setSobreId(e.target.value)} className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }}>
+            <option value="">Fuera de sobres</option>
+            {gastables.map((s) => <option key={s.id} value={s.id}>{s.emoji} {s.nombre}</option>)}
+          </select>
+        </div>
+        {msg && <div className="text-xs mb-2" style={{ color: "var(--red)" }}>{msg}</div>}
+        <div className="flex gap-2">
+          <button onClick={savePago} className="flex-1 rounded-xl py-2 text-sm font-bold" style={{ background: "var(--green)", color: "#fff" }}>Guardar</button>
+          <button onClick={() => setEditing(null)} className="px-4 rounded-xl py-2 text-sm font-semibold" style={{ color: "var(--ink-soft)" }}>Cancelar</button>
+        </div>
+      </div>
+    );
+  }
+
+  function msiForm() {
+    const montoNum = parseFloat(msiMonto) || 0;
+    const mesesNum = parseInt(msiMeses) || 0;
+    const mensual = mesesNum > 0 ? montoNum / mesesNum : 0;
+    return (
+      <div className="rounded-xl p-3 mb-2" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+        <label className="block text-[10px] font-semibold mb-0.5" style={{ color: "var(--ink-soft)" }}>Que compraste?</label>
+        <input type="text" placeholder="ej: PlayStation Plus" value={msiConcepto} onChange={(e) => setMsiConcepto(e.target.value)} className="w-full rounded-xl px-3 py-2 text-sm outline-none mb-2" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+        <div className="flex gap-2 mb-2">
+          <div className="flex-1">
+            <label className="block text-[10px] font-semibold mb-0.5" style={{ color: "var(--ink-soft)" }}>Monto total</label>
+            <input type="number" inputMode="decimal" placeholder="12000" value={msiMonto} onChange={(e) => setMsiMonto(e.target.value)} className="w-full num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+          </div>
+          <div className="flex-1">
+            <label className="block text-[10px] font-semibold mb-0.5" style={{ color: "var(--ink-soft)" }}>A cuantos meses?</label>
+            <input type="number" inputMode="numeric" placeholder="12" min="1" value={msiMeses} onChange={(e) => setMsiMeses(e.target.value)} className="w-full num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+          </div>
+        </div>
+        {mensual > 0 && <div className="text-xs mb-2 num font-semibold" style={{ color: "var(--green)" }}>Mensualidad: {money(mensual)}</div>}
+        <div className="mb-2">
+          <label className="block text-[10px] font-semibold mb-0.5" style={{ color: "var(--ink-soft)" }}>Con que tarjeta?</label>
+          <select value={msiTarjetaId} onChange={(e) => setMsiTarjetaId(e.target.value)} className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }}>
+            <option value="">-- Elige tarjeta --</option>
+            {tarjetasActivas.map((t) => <option key={t.id} value={t.id}>💳 {t.nombre}</option>)}
+          </select>
+        </div>
+        <div className="flex gap-2 mb-2">
+          <div className="flex-1"><label className="block text-[10px] font-semibold mb-0.5" style={{ color: "var(--ink-soft)" }}>Fecha de compra</label><input type="date" value={msiFecha} onChange={(e) => setMsiFecha(e.target.value)} className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }} /></div>
+          <div className="flex-1"><label className="block text-[10px] font-semibold mb-0.5" style={{ color: "var(--ink-soft)" }}>Primer pago</label><input type="date" value={msiPrimer} onChange={(e) => setMsiPrimer(e.target.value)} className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }} /></div>
+        </div>
+        {msiMsg && <div className="text-xs mb-2" style={{ color: "var(--red)" }}>{msiMsg}</div>}
+        <div className="flex gap-2">
+          <button onClick={saveMSI} className="flex-1 rounded-xl py-2 text-sm font-bold" style={{ background: "var(--green)", color: "#fff" }}>Guardar</button>
+          <button onClick={() => setEditMSI(null)} className="px-4 rounded-xl py-2 text-sm font-semibold" style={{ color: "var(--ink-soft)" }}>Cancelar</button>
+        </div>
+      </div>
+    );
+  }
+}
+
+/* ---------- Tab Analisis (F5) ---------- */
+function TabAnalisis({ gastos, sobres, presupSemanal }) {
+  const [excluir, setExcluir] = useState(false);
+  const [ventana, setVentana] = useState(4);
+  const [modoDia, setModoDia] = useState("monto");
+  const [vistaTemp, setVistaTemp] = useState("semana");
+
+  const gf = excluir ? gastos.filter((g) => g.categoria !== "tarjetas" && g.categoria !== "renta") : gastos;
+
+  const porDiaRaw = [0, 1, 2, 3, 4, 5, 6].map((d) => {
+    const gs = gf.filter((g) => fromStr(g.fecha).getDay() === d);
+    return { dia: DIAS[d], monto: gs.reduce((a, g) => a + Number(g.monto), 0), compras: gs.length };
+  });
+  const porDia = [porDiaRaw[6], ...porDiaRaw.slice(0, 6)];
+
+  const todasSemanas = [...new Set(gf.map((g) => weekOf(g.fecha)))].sort();
+  const semanasVentana = todasSemanas.slice(-ventana);
+
+  const porSemana = semanasVentana.map((ws) => {
+    const d = fromStr(ws);
+    return { label: `${d.getDate()} ${MESES[d.getMonth()]}`, monto: gf.filter((g) => weekOf(g.fecha) === ws).reduce((a, g) => a + Number(g.monto), 0) };
+  });
+
+  const mesesUnicos = [...new Set(gf.map((g) => g.fecha.substring(0, 7)))].sort();
+  const porMes = mesesUnicos.map((m) => {
+    const [y, mm] = m.split("-").map(Number);
+    return { label: `${MESES[mm - 1]} ${y}`, monto: gf.filter((g) => g.fecha.startsWith(m)).reduce((a, g) => a + Number(g.monto), 0) };
+  });
+
+  const porCat = CATEGORIAS.map((c) => ({
+    name: CAT_LABEL[c], value: gf.filter((g) => g.categoria === c).reduce((a, g) => a + Number(g.monto), 0), color: CAT_COLOR[c],
+  })).filter((x) => x.value > 0);
+
+  const gastosVentana = gf.filter((g) => semanasVentana.includes(weekOf(g.fecha)));
+  const totalVentana = gastosVentana.reduce((a, g) => a + Number(g.monto), 0);
+  const pctCat = CATEGORIAS.map((c) => {
+    const val = gastosVentana.filter((g) => g.categoria === c).reduce((a, g) => a + Number(g.monto), 0);
+    return { name: CAT_LABEL[c], value: val, pct: totalVentana > 0 ? Math.round((val / totalVentana) * 100) : 0, color: CAT_COLOR[c] };
+  }).filter((x) => x.value > 0).sort((a, b) => b.value - a.value);
+
+  const tendencia = todasSemanas.map((ws) => {
+    const d = fromStr(ws);
+    return { label: `${d.getDate()}/${d.getMonth() + 1}`, gasto: gf.filter((g) => weekOf(g.fecha) === ws).reduce((a, g) => a + Number(g.monto), 0) };
+  });
+
+  const ttStyle = { contentStyle: { background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, fontSize: 12 }, labelStyle: { color: "var(--ink)", fontWeight: 600 } };
+
+  return (
+    <div>
+      <h2 className="text-base font-bold mb-1" style={{ color: "var(--ink)" }}>Analisis por categoria</h2>
+      <label className="flex items-center gap-2 mb-4 text-sm cursor-pointer select-none" style={{ color: "var(--ink-soft)" }}>
+        <input type="checkbox" checked={excluir} onChange={() => setExcluir(!excluir)} className="rounded" />Excluir tarjetas y renta
+      </label>
+
+      <div className="rounded-xl p-3 mb-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--ink-soft)" }}>Por dia de la semana</h3>
+          <button className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ background: "var(--line)", color: "var(--ink)" }}
+            onClick={() => setModoDia(modoDia === "monto" ? "compras" : "monto")}>{modoDia === "monto" ? "$" : "#"}</button>
+        </div>
+        <ResponsiveContainer width="100%" height={180}>
+          <BarChart data={porDia}><XAxis dataKey="dia" tick={{ fontSize: 11, fill: "#5A6B85" }} axisLine={false} tickLine={false} /><YAxis hide />
+            <Tooltip {...ttStyle} formatter={(v) => modoDia === "monto" ? money(v) : `${v} compras`} /><Bar dataKey={modoDia} fill="#22324A" radius={[4, 4, 0, 0]} /></BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="rounded-xl p-3 mb-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+        <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--ink-soft)" }}>Por categoria</h3>
+        <div className="flex items-center">
+          <ResponsiveContainer width="50%" height={160}>
+            <PieChart><Pie data={porCat} dataKey="value" cx="50%" cy="50%" innerRadius={35} outerRadius={65} paddingAngle={2}>
+              {porCat.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip {...ttStyle} formatter={(v) => money(v)} /></PieChart>
+          </ResponsiveContainer>
+          <div className="flex-1 pl-2">
+            {porCat.map((c) => (
+              <div key={c.name} className="flex items-center justify-between text-xs py-0.5">
+                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full" style={{ background: c.color }} /><span style={{ color: "#5A6B85" }}>{c.name}</span></span>
+                <span className="num font-semibold" style={{ color: "#22324A" }}>{money(c.value)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl p-3 mb-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--ink-soft)" }}>Distribucion ({ventana} sem)</h3>
+          <div className="flex gap-1">
+            {[2, 3, 4].map((n) => (
+              <button key={n} className="text-[10px] font-semibold px-2 py-1 rounded-full"
+                style={ventana === n ? { background: "#22324A", color: "#fff" } : { background: "var(--line)", color: "#22324A" }} onClick={() => setVentana(n)}>{n}s</button>
+            ))}
+          </div>
+        </div>
+        {pctCat.map((c) => (
+          <div key={c.name} className="mb-1.5">
+            <div className="flex items-center justify-between text-xs mb-0.5"><span style={{ color: "#22324A" }}>{c.name}</span><span className="num font-semibold" style={{ color: "#5A6B85" }}>{c.pct}% · {money(c.value)}</span></div>
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--line)" }}><div className="h-full rounded-full" style={{ width: `${c.pct}%`, background: c.color, transition: "width .3s" }} /></div>
+          </div>
+        ))}
+        {totalVentana > 0 && <div className="text-xs mt-2 text-right num font-semibold" style={{ color: "#5A6B85" }}>Total: {money(totalVentana)}</div>}
+      </div>
+
+      <div className="rounded-xl p-3 mb-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--ink-soft)" }}>Gasto temporal</h3>
+          <div className="flex gap-1">
+            {[["semana", "Sem"], ["mes", "Mes"]].map(([v, l]) => (
+              <button key={v} className="text-[10px] font-semibold px-2 py-1 rounded-full"
+                style={vistaTemp === v ? { background: "#22324A", color: "#fff" } : { background: "var(--line)", color: "#22324A" }} onClick={() => setVistaTemp(v)}>{l}</button>
+            ))}
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={180}>
+          <BarChart data={vistaTemp === "semana" ? porSemana : porMes}>
+            <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#5A6B85" }} axisLine={false} tickLine={false} /><YAxis hide />
+            <Tooltip {...ttStyle} formatter={(v) => money(v)} /><Bar dataKey="monto" fill="#0B7A4B" radius={[4, 4, 0, 0]} /></BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="rounded-xl p-3 mb-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+        <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--ink-soft)" }}>Tendencia vs presupuesto</h3>
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={tendencia}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E3DECF" />
+            <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#5A6B85" }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: "#5A6B85" }} axisLine={false} tickLine={false} width={45} tickFormatter={(v) => `$${Math.round(v / 1000)}k`} />
+            <Tooltip {...ttStyle} formatter={(v, name) => [money(v), name === "gasto" ? "Gasto" : "Meta"]} />
+            <ReferenceLine y={presupSemanal} stroke="#0B7A4B" strokeDasharray="5 5" label={{ value: `Meta ${money(presupSemanal)}`, position: "insideTopRight", fontSize: 9, fill: "#0B7A4B" }} />
+            <Line type="monotone" dataKey="gasto" stroke="#22324A" strokeWidth={2} dot={{ r: 3, fill: "#22324A" }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Selector de tema (F6) ---------- */
+function SettingsPanel({ tema, onChangeTema, onClose }) {
+  return (
+    <div className="fixed inset-0 z-30 flex items-end justify-center" style={{ background: "rgba(34,50,74,.45)" }} onClick={onClose}>
+      <div className="w-full max-w-md rounded-t-2xl p-4 pb-6" style={{ background: "var(--card)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>Tema visual</h2>
+          <button className="text-sm px-2 py-1" style={{ color: "var(--ink-soft)" }} onClick={onClose}>Cerrar</button>
+        </div>
+        <div className="grid grid-cols-5 gap-2">
+          {Object.entries(TEMAS).map(([key, t]) => (
+            <button key={key} onClick={() => onChangeTema(key)}
+              className="rounded-xl p-1.5 text-center" style={{ border: tema === key ? `2px solid ${t.ink}` : "2px solid transparent", background: "var(--paper)" }}>
+              <div className="rounded-lg overflow-hidden mb-1" style={{ border: "1px solid var(--line)" }}>
+                <div style={{ background: t.paper, height: 20 }} />
+                <div className="flex">
+                  <div style={{ background: t.ink, height: 8, flex: 1 }} />
+                  <div style={{ background: t.green, height: 8, flex: 1 }} />
+                </div>
+                <div style={{ background: t.card, height: 12 }} />
+              </div>
+              <div className="text-[10px] font-semibold" style={{ color: tema === key ? "var(--ink)" : "var(--ink-soft)" }}>{t.label}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   App principal
+   ============================================================ */
+function AppMain() {
+  const { perfil, logout } = useAuth();
+  const cuentaId = perfil?.cuenta_id;
+
+  const [sobres, setSobres] = useState([]);
+  const [gastos, setGastos] = useState([]);
+  const [cierres, setCierres] = useState([]);
+  const [pagos, setPagos] = useState([]);
+  const [msi, setMsi] = useState([]);
+  const [tarjetas, setTarjetas] = useState([]);
+  const [presupSemanal, setPresupSemanal] = useState(3000);
+  const [tema, setTemaState] = useState(perfil?.tema || "claro");
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("semana");
+  const [offset, setOffset] = useState(0);
+  const [err, setErr] = useState("");
+  const [showPagoForm, setShowPagoForm] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+
+  const cargarDatos = useCallback(async () => {
+    if (!cuentaId) return;
+    const [sobresRes, gastosRes, cierresRes, pagosRes, msiRes, tarjetasRes, cuentaRes] = await Promise.all([
+      supabase.from("sobres").select("*").eq("cuenta_id", cuentaId).eq("activo", true).order("orden"),
+      supabase.from("gastos").select("*").eq("cuenta_id", cuentaId).order("fecha", { ascending: false }),
+      supabase.from("cierres").select("*").eq("cuenta_id", cuentaId).order("semana", { ascending: false }),
+      supabase.from("pagos_recurrentes").select("*").eq("cuenta_id", cuentaId).order("nombre"),
+      supabase.from("compras_msi").select("*").eq("cuenta_id", cuentaId).order("fecha_compra", { ascending: false }),
+      supabase.from("tarjetas").select("*").eq("cuenta_id", cuentaId).order("nombre"),
+      supabase.from("cuentas").select("presupuesto_semanal").eq("id", cuentaId).single(),
+    ]);
+    if (sobresRes.error || gastosRes.error || cierresRes.error) { setErr("Error cargando datos."); setLoading(false); return; }
+    setSobres(sobresRes.data || []); setGastos(gastosRes.data || []); setCierres(cierresRes.data || []);
+    setPagos(pagosRes.data || []); setMsi(msiRes.data || []); setTarjetas(tarjetasRes.data || []);
+    if (cuentaRes.data) setPresupSemanal(Number(cuentaRes.data.presupuesto_semanal) || 3000);
+    setLoading(false);
+
+    const result = await autoClose(sobresRes.data || [], gastosRes.data || [], cierresRes.data || [], cuentaId);
+    if (result.nuevos.length > 0) {
+      setCierres((prev) => [...prev, ...result.nuevos]);
+      const { data: sa } = await supabase.from("sobres").select("*").eq("cuenta_id", cuentaId).eq("activo", true).order("orden");
+      if (sa) setSobres(sa);
+    }
+  }, [cuentaId]);
+
+  useEffect(() => { cargarDatos(); }, [cargarDatos]);
+
+  useEffect(() => {
+    if (!cuentaId) return;
+    const channel = supabase.channel("datos-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "gastos", filter: `cuenta_id=eq.${cuentaId}` }, (payload) => {
+        if (payload.eventType === "INSERT") setGastos((prev) => [payload.new, ...prev]);
+        else if (payload.eventType === "DELETE") setGastos((prev) => prev.filter((g) => g.id !== payload.old.id));
+        else if (payload.eventType === "UPDATE") setGastos((prev) => prev.map((g) => (g.id === payload.new.id ? payload.new : g)));
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "sobres", filter: `cuenta_id=eq.${cuentaId}` }, () => {
+        supabase.from("sobres").select("*").eq("cuenta_id", cuentaId).eq("activo", true).order("orden").then(({ data }) => { if (data) setSobres(data); });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "cierres", filter: `cuenta_id=eq.${cuentaId}` }, () => {
+        supabase.from("cierres").select("*").eq("cuenta_id", cuentaId).order("semana", { ascending: false }).then(({ data }) => { if (data) setCierres(data); });
+      })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [cuentaId]);
+
+  const addGasto = async (gasto) => { const { error } = await supabase.from("gastos").insert({ ...gasto, cuenta_id: cuentaId, usuario_id: perfil.user_id }); if (error) throw error; };
+  const deleteGasto = async (id) => { const { error } = await supabase.from("gastos").delete().eq("id", id); if (error) setErr("Error al borrar gasto."); };
+  const editGasto = async (id, cambios) => {
+    const { error } = await supabase.from("gastos").update(cambios).eq("id", id);
+    if (error) throw error;
+    setGastos((prev) => prev.map((g) => (g.id === id ? { ...g, ...cambios } : g)));
+  };
+
+  const saveSobre = async ({ id, saldo_inicial, ...datos }) => {
+    if (id) { const { error } = await supabase.from("sobres").update(datos).eq("id", id); if (error) throw error; }
+    else {
+      const maxOrden = sobres.filter((s) => !s.es_ahorro).length;
+      const { error } = await supabase.from("sobres").insert({ ...datos, cuenta_id: cuentaId, saldo_acumulado: saldo_inicial || 0, es_ahorro: false, orden: maxOrden + 1 });
+      if (error) throw error;
+    }
+  };
+  const deleteSobre = async (id) => { const { error } = await supabase.from("sobres").update({ activo: false }).eq("id", id); if (error) throw error; setSobres((prev) => prev.filter((s) => s.id !== id)); };
+  const savePresup = async (valor) => { const { error } = await supabase.from("cuentas").update({ presupuesto_semanal: valor }).eq("id", cuentaId); if (error) { setErr("Error al guardar presupuesto."); return; } setPresupSemanal(valor); };
+
+  const savePago = async ({ id, ...datos }) => {
+    if (id) { const { error } = await supabase.from("pagos_recurrentes").update(datos).eq("id", id); if (error) throw error; setPagos((prev) => prev.map((p) => (p.id === id ? { ...p, ...datos } : p))); }
+    else { const { data, error } = await supabase.from("pagos_recurrentes").insert({ ...datos, cuenta_id: cuentaId }).select().single(); if (error) throw error; setPagos((prev) => [...prev, data]); }
+  };
+  const deletePago = async (id) => { const { error } = await supabase.from("pagos_recurrentes").delete().eq("id", id); if (error) throw error; setPagos((prev) => prev.filter((p) => p.id !== id)); };
+
+  const saveMSI = async ({ id, ...datos }) => {
+    if (id) { const { error } = await supabase.from("compras_msi").update(datos).eq("id", id); if (error) throw error; setMsi((prev) => prev.map((m) => (m.id === id ? { ...m, ...datos } : m))); }
+    else { const { data, error } = await supabase.from("compras_msi").insert({ ...datos, cuenta_id: cuentaId }).select().single(); if (error) throw error; setMsi((prev) => [...prev, data]); }
+  };
+  const deleteMSI = async (id) => { const { error } = await supabase.from("compras_msi").update({ activo: false }).eq("id", id); if (error) throw error; setMsi((prev) => prev.map((m) => m.id === id ? { ...m, activo: false } : m)); };
+
+  const saveTarjeta = async ({ id, ...datos }) => {
+    if (id) { const { error } = await supabase.from("tarjetas").update(datos).eq("id", id); if (error) throw error; setTarjetas((prev) => prev.map((t) => (t.id === id ? { ...t, ...datos } : t))); }
+    else { const { data, error } = await supabase.from("tarjetas").insert({ ...datos, cuenta_id: cuentaId }).select().single(); if (error) throw error; setTarjetas((prev) => [...prev, data]); }
+  };
+  const deleteTarjeta = async (id) => { const { error } = await supabase.from("tarjetas").update({ activo: false }).eq("id", id); if (error) throw error; setTarjetas((prev) => prev.map((t) => t.id === id ? { ...t, activo: false } : t)); };
+
+  const pagarRecurrente = (pago) => { setShowPagoForm({ monto: String(pago.monto_estimado), sobre_id: pago.destino_sobre_id || "", fuera: !pago.destino_sobre_id, medio_pago: pago.medio_pago || "debito", categoria: pago.categoria, nota: pago.nombre, _pagoId: pago.id }); };
+  const confirmarPago = async (gasto) => {
+    await addGasto(gasto);
+    const pagoId = showPagoForm?._pagoId;
+    if (pagoId) { const hoy = toStr(new Date()); await supabase.from("pagos_recurrentes").update({ ultimo_pago: hoy }).eq("id", pagoId); setPagos((prev) => prev.map((p) => (p.id === pagoId ? { ...p, ultimo_pago: hoy } : p))); }
+    setShowPagoForm(null);
+  };
+  const posponerPago = async (id) => { const sig = toStr(addDays(new Date(), 7)); await supabase.from("pagos_recurrentes").update({ pospuesto_hasta: sig }).eq("id", id); setPagos((prev) => prev.map((p) => (p.id === id ? { ...p, pospuesto_hasta: sig } : p))); };
+
+  const pagarTarjeta = (tarjeta, estimado) => {
+    const pagoRec = pagos.find((p) => p.tarjeta_id === tarjeta.id);
+    const montoEst = estimado?.total || (pagoRec ? Number(pagoRec.monto_estimado) : 0);
+    setShowPagoForm({
+      monto: String(Math.round(montoEst)), fuera: true, medio_pago: "debito",
+      categoria: "tarjetas", nota: `Pago ${tarjeta.nombre}`,
+      _pagoId: pagoRec?.id || null,
+    });
+  };
+
+  const cambiarTema = async (t) => {
+    setTemaState(t);
+    await supabase.from("perfiles").update({ tema: t }).eq("user_id", perfil.user_id);
+  };
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: "#F6F4ED" }}><div className="text-sm" style={{ color: "#5A6B85" }}>Abriendo tu libreta...</div></div>;
+
+  const TABS = [
+    { id: "semana", label: "Semana", icon: "📓" },
+    { id: "sobres", label: "Sobres", icon: "✉️" },
+    { id: "pagos", label: "Pagos", icon: "💳" },
+    { id: "analisis", label: "Analisis", icon: "📊" },
+    { id: "ahorro", label: "Ahorro", icon: "🐷" },
+  ];
+
+  const temaObj = TEMAS[tema] || TEMAS.claro;
+  const hoy = new Date();
+  const viewedWS = toStr(addDays(weekStartOf(hoy), offset * 7));
+
+  return (
+    <div className="app-root min-h-screen" style={{
+      "--paper": temaObj.paper, "--line": temaObj.line, "--card": temaObj.card,
+      "--ink": temaObj.ink, "--ink-soft": temaObj.inkSoft, "--green": temaObj.green,
+      "--amber": temaObj.amber, "--red": temaObj.red, "--flap": temaObj.flap,
+      background: temaObj.bg,
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+        .app-root { font-family: 'Sora', system-ui, sans-serif; color: var(--ink); }
+        .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+        .sobre-card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+        .sobre-flap { position: absolute; top: 0; left: 0; right: 0; height: 13px; background: var(--flap); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+        .chip { font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 9999px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+        .nav-arrow { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-size: 18px; font-weight: 700; }
+        input::placeholder { color: #9AA6B8; }
+        @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+      `}</style>
+
+      <div className="max-w-md mx-auto px-4 pt-5 pb-28">
+        <header className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-lg font-bold" style={{ color: "var(--ink)" }}>Sobres semanales</h1>
+            <p className="text-xs" style={{ color: "var(--ink-soft)" }}>Hola, {perfil?.nombre}</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setShowSettings(true)} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ color: "var(--ink-soft)", border: "1px solid var(--line)" }}>⚙️</button>
+            <button onClick={logout} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ color: "var(--ink-soft)", border: "1px solid var(--line)" }}>Salir</button>
+          </div>
+        </header>
+
+        {err && <div className="text-xs rounded-xl px-3 py-2 mb-3" style={{ background: "#FBEAE5", color: "var(--red)" }}>{err}</div>}
+
+        {tab === "semana" && <TabSemana sobres={sobres} gastos={gastos} cierres={cierres} pagos={pagos} tarjetas={tarjetas} msi={msi} presupSemanal={presupSemanal} offset={offset} setOffset={setOffset} onAdd={addGasto} onDelete={deleteGasto} onEditGasto={editGasto} onPagar={pagarRecurrente} onPosponer={posponerPago} onPagarTarjeta={pagarTarjeta} />}
+        {tab === "sobres" && <TabSobres sobres={sobres} gastos={gastos} presupSemanal={presupSemanal} onSaveSobre={saveSobre} onDeleteSobre={deleteSobre} onSavePresup={savePresup} />}
+        {tab === "pagos" && <TabPagos pagos={pagos} sobres={sobres} msi={msi} tarjetas={tarjetas} gastos={gastos} onSavePago={savePago} onDeletePago={deletePago} onPagar={pagarRecurrente} onSaveMSI={saveMSI} onDeleteMSI={deleteMSI} onSaveTarjeta={saveTarjeta} onDeleteTarjeta={deleteTarjeta} onPagarTarjeta={pagarTarjeta} />}
+        {tab === "analisis" && <TabAnalisis gastos={gastos} sobres={sobres} presupSemanal={presupSemanal} />}
+        {tab === "ahorro" && <TabAhorro sobres={sobres} cierres={cierres} />}
+      </div>
+
+      {showPagoForm && <GastoForm sobres={sobres} tarjetas={tarjetas} viewedWS={viewedWS} isCurrent={true} onAdd={confirmarPago} onClose={() => setShowPagoForm(null)} prefill={showPagoForm} />}
+      {showSettings && <SettingsPanel tema={tema} onChangeTema={cambiarTema} onClose={() => setShowSettings(false)} />}
+
+      <nav className="fixed bottom-0 left-0 right-0 z-20" style={{ background: `${temaObj.card}EE`, borderTop: "1px solid var(--line)", backdropFilter: "blur(6px)" }}>
+        <div className="max-w-md mx-auto flex">
+          {TABS.map((t) => (
+            <button key={t.id} onClick={() => setTab(t.id)} className="flex-1 py-2.5 text-center" style={{ color: tab === t.id ? "var(--ink)" : "var(--ink-soft)" }}>
+              <div className="text-lg leading-none">{t.icon}</div>
+              <div className="text-[10px] font-semibold mt-0.5">{t.label}</div>
+            </button>
+          ))}
+        </div>
+      </nav>
+    </div>
+  );
+}
+
+/* ============================================================
+   Root
+   ============================================================ */
+export default function App() {
+  return <AuthProvider><AppContent /></AuthProvider>;
+}
+
+function AppContent() {
+  const { session, perfil, cargando } = useAuth();
+  if (cargando) return <div className="min-h-screen flex items-center justify-center" style={{ background: "#F6F4ED" }}><div className="text-sm" style={{ color: "#5A6B85" }}>Cargando...</div></div>;
+  if (!session) return <Login />;
+  if (!perfil) return <SetupPerfil />;
+  return <AppMain />;
+}
