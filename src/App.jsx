@@ -1120,7 +1120,8 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
                 <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: CAT_COLOR[p.categoria] + "18", color: CAT_COLOR[p.categoria] }}>{CAT_LABEL[p.categoria]}</span>
               </div>
               <div className="text-xs num" style={{ color: "var(--ink-soft)" }}>
-                {money(montoReal(p))} · {FREQ_LABEL[p.frecuencia] || "Mensual"}{p.dia_pago ? ` · dia ${p.dia_pago}` : ""}
+                {money(montoReal(p))} · {FREQ_LABEL[p.frecuencia] || "Mensual"}
+                {(() => { const dia = p.categoria === "tarjetas" && p.tarjeta_id ? tarjetasActivas.find((t) => t.id === p.tarjeta_id)?.dia_pago : p.dia_pago; return dia ? ` · dia ${dia}` : ""; })()}
                 {p.tarjeta_id ? ` · 💳 ${tarjetasActivas.find((t) => t.id === p.tarjeta_id)?.nombre || ""}` : ""}
                 {p.destino_sobre_id ? ` → ${sobres.find((s) => s.id === p.destino_sobre_id)?.nombre || ""}` : " → Fuera"}
               </div>
