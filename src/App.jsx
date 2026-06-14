@@ -101,14 +101,14 @@ function getPagosProximos(pagos, gastos) {
   const wsHoy = toStr(weekStartOf(hoy));
   return pagos.filter((p) => {
     if (!p.activo) return false;
-    if (p.tarjeta_id) return false;
+    if (p.categoria === "tarjetas") return false;
     if (p.pospuesto_hasta && p.pospuesto_hasta >= toStr(hoy)) return false;
     if (p.frecuencia === "semanal") {
       return !gastos.some((g) => g.nota === p.nombre && weekOf(g.fecha) === wsHoy);
     }
     const dia = p.dia_pago || 1;
     const diff = dia - diaHoy;
-    const enRango = diff >= -1 && diff <= 3;
+    const enRango = diff >= -2 && diff <= 3;
     if (!enRango) return false;
     return !gastos.some((g) => g.nota === p.nombre && fromStr(g.fecha).getMonth() === mesHoy && fromStr(g.fecha).getFullYear() === anioHoy);
   });
@@ -147,7 +147,7 @@ function getTarjetaRecordatorios(tarjetas, pagosRec, gastos) {
   return tarjetas.filter((t) => {
     if (!t.activo || !t.dia_pago) return false;
     const diff = t.dia_pago - diaHoy;
-    if (diff < -1 || diff > 3) return false;
+    if (diff < -2 || diff > 3) return false;
     const notaPago = `Pago ${t.nombre}`;
     return !gastos.some((g) => g.nota === notaPago && fromStr(g.fecha).getMonth() === mesHoy && fromStr(g.fecha).getFullYear() === anioHoy);
   });
