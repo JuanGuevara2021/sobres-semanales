@@ -1057,6 +1057,8 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
 
   const msiActivos = msi.filter((m) => m.activo);
   const cargaMSI = msiActivos.reduce((a, m) => { const s = calcMSI(m); return s.estatus === "activo" ? a + s.mensual : a; }, 0);
+  const msiDeTarjeta = (tarjetaId) => msiActivos.filter((m) => m.tarjeta_id === tarjetaId).reduce((a, m) => { const s = calcMSI(m); return s.estatus === "activo" ? a + s.mensual : a; }, 0);
+  const montoReal = (p) => p.categoria === "tarjetas" && p.tarjeta_id ? msiDeTarjeta(p.tarjeta_id) : Number(p.monto_estimado);
 
   return (
     <div>
@@ -1118,12 +1120,12 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
                 <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: CAT_COLOR[p.categoria] + "18", color: CAT_COLOR[p.categoria] }}>{CAT_LABEL[p.categoria]}</span>
               </div>
               <div className="text-xs num" style={{ color: "var(--ink-soft)" }}>
-                {money(Number(p.monto_estimado))} · {FREQ_LABEL[p.frecuencia] || "Mensual"}{p.dia_pago ? ` · dia ${p.dia_pago}` : ""}
+                {money(montoReal(p))} · {FREQ_LABEL[p.frecuencia] || "Mensual"}{p.dia_pago ? ` · dia ${p.dia_pago}` : ""}
                 {p.tarjeta_id ? ` · 💳 ${tarjetasActivas.find((t) => t.id === p.tarjeta_id)?.nombre || ""}` : ""}
                 {p.destino_sobre_id ? ` → ${sobres.find((s) => s.id === p.destino_sobre_id)?.nombre || ""}` : " → Fuera"}
               </div>
             </div>
-            <button onClick={() => onPagar(p)} className="text-[10px] font-bold px-2 py-1.5 rounded-lg" style={{ background: "var(--green)", color: "#fff" }}>Pague</button>
+            <button onClick={() => onPagar({ ...p, monto_estimado: montoReal(p) })} className="text-[10px] font-bold px-2 py-1.5 rounded-lg" style={{ background: "var(--green)", color: "#fff" }}>Pague</button>
             <button className="text-xs px-1.5 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => startEditPago(p)}>✎</button>
             <button className="text-xs px-1.5 py-1 rounded-lg" style={pendingDel === p.id ? { background: "var(--red)", color: "#fff" } : { color: "var(--ink-soft)" }} onClick={() => tryDeletePago(p.id)}>
               {pendingDel === p.id ? "?" : "✕"}
