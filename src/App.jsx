@@ -124,7 +124,7 @@ function getCicloActual(diaCorte) {
   return { inicio: toStr(new Date(y, m, diaCorte + 1)), fin: toStr(new Date(y, m + 1, diaCorte)) };
 }
 
-function calcEstimadoTarjeta(tarjeta, gastos, msiList) {
+function calcEstimadoTarjeta(tarjeta, gastos, msiList, pagosRec) {
   const msiMensual = msiList
     .filter((m) => m.tarjeta_id === tarjeta.id && m.activo)
     .reduce((a, m) => {
@@ -132,7 +132,11 @@ function calcEstimadoTarjeta(tarjeta, gastos, msiList) {
       return st.estatus === "activo" ? a + st.mensual : a;
     }, 0);
   const numMSI = msiList.filter((m) => m.tarjeta_id === tarjeta.id && m.activo && calcMSI(m).estatus === "activo").length;
-  return { msi: msiMensual, numMSI, total: msiMensual };
+  const recurrentes = (pagosRec || [])
+    .filter((p) => p.tarjeta_id === tarjeta.id && p.activo)
+    .reduce((a, p) => a + Number(p.monto_estimado) * (p.frecuencia === "semanal" ? 4 : p.frecuencia === "quincenal" ? 2 : 1), 0);
+  const numRec = (pagosRec || []).filter((p) => p.tarjeta_id === tarjeta.id && p.activo).length;
+  return { msi: msiMensual, numMSI, recurrentes, numRec, total: msiMensual + recurrentes };
 }
 
 function getTarjetaRecordatorios(tarjetas, pagosRec, gastos) {
@@ -445,7 +449,8 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
   });
 
   const gastadoPor = (id) => gastosSemana.filter((g) => g.sobre_id === id).reduce((a, g) => a + Number(g.monto), 0);
-  const gastadoTotal = gastosSemana.reduce((a, g) => a + Number(g.monto), 0);
+  const gastadoTotal = gastosSemana.filter((g) => g.sobre_id).reduce((a, g) => a + Number(g.monto), 0);
+  const gastadoFuera = gastosSemana.filter((g) => !g.sobre_id).reduce((a, g) => a + Number(g.monto), 0);
   const restanteTotal = presupSemanal - gastadoTotal;
 
   const porDia = gastosFiltrados.reduce((acc, g) => { (acc[g.fecha] = acc[g.fecha] || []).push(g); return acc; }, {});
@@ -474,7 +479,7 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
         </div>
         <div className="num text-3xl font-bold" style={{ color: restanteTotal < 0 ? "#FFB4A0" : "#fff" }}>{money(restanteTotal)}</div>
         <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,.65)" }}>
-          Gastado {money(gastadoTotal)} de {money(presupSemanal)} · {gastosSemana.length} gasto{gastosSemana.length === 1 ? "" : "s"}
+          Sobres: {money(gastadoTotal)} de {money(presupSemanal)}{gastadoFuera > 0 ? ` · Fuera: ${money(gastadoFuera)}` : ""} · {gastosSemana.length} gasto{gastosSemana.length === 1 ? "" : "s"}
         </div>
         {gastadoTotal > 0 && (
           <>
@@ -503,7 +508,7 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
 
       {/* Recordatorios de tarjetas */}
       {tarjetasProximas.map((t) => {
-        const est = calcEstimadoTarjeta(t, gastos, msi);
+        const est = calcEstimadoTarjeta(t, gastos, msi, pagos);
         return (
           <div key={t.id} className="rounded-xl px-3 py-2.5 mb-2 flex items-center gap-2" style={{ background: "#FEF3C7", border: "1px solid #FDE68A" }}>
             <span className="text-lg">💳</span>
@@ -1061,11 +1066,10 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
     <div>
       {/* === TARJETAS === */}
       <h2 className="text-base font-bold mb-1" style={{ color: "var(--ink)" }}>💳 Mis tarjetas</h2>
-      <div className="text-xs mb-3" style={{ color: "var(--ink-soft)" }}>Carga MSI mensual: <span className="num font-semibold">{money(cargaMSI)}</span></div>
 
       {tarjetasActivas.map((t) => {
         if (editTarjeta === t.id) return <div key={t.id}>{tarjetaForm()}</div>;
-        const est = calcEstimadoTarjeta(t, gastos, msi);
+        const est = calcEstimadoTarjeta(t, gastos, msi, pagos);
         return (
           <div key={t.id} className="rounded-xl px-3 py-3 mb-2" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
             <div className="flex items-center justify-between">
@@ -1088,16 +1092,18 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
             {est.total > 0 && (
               <div className="mt-2 rounded-lg px-2.5 py-2" style={{ background: "var(--paper)" }}>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold" style={{ color: "var(--ink)" }}>A pagar (MSI)</span>
+                  <span className="text-xs font-semibold" style={{ color: "var(--ink)" }}>A pagar este mes</span>
                   <span className="num text-sm font-bold" style={{ color: "var(--ink)" }}>{money(est.total)}</span>
                 </div>
                 <div className="text-[10px] mt-0.5" style={{ color: "var(--ink-soft)" }}>
-                  {est.numMSI} compra{est.numMSI === 1 ? "" : "s"} a meses activa{est.numMSI === 1 ? "" : "s"}
+                  {est.numMSI > 0 && <span>MSI: {money(est.msi)} ({est.numMSI} compra{est.numMSI === 1 ? "" : "s"})</span>}
+                  {est.numMSI > 0 && est.numRec > 0 && <span> · </span>}
+                  {est.numRec > 0 && <span>Recurrentes: {money(est.recurrentes)} ({est.numRec})</span>}
                 </div>
               </div>
             )}
             {est.total === 0 && (
-              <div className="text-[10px] mt-1.5" style={{ color: "var(--ink-soft)" }}>Sin MSI activos</div>
+              <div className="text-[10px] mt-1.5" style={{ color: "var(--ink-soft)" }}>Sin cargos este mes</div>
             )}
 
             <div className="flex gap-2 mt-2">
