@@ -132,9 +132,7 @@ function calcEstimadoTarjeta(tarjeta, gastos, msiList, pagosRec) {
       return st.estatus === "activo" ? a + st.mensual : a;
     }, 0);
   const numMSI = msiList.filter((m) => m.tarjeta_id === tarjeta.id && m.activo && calcMSI(m).estatus === "activo").length;
-  const recItems = (pagosRec || []).filter((p) => p.tarjeta_id === tarjeta.id && p.activo);
-  const recurrentes = recItems.reduce((a, p) => a + Number(p.monto_estimado) * (p.frecuencia === "semanal" ? 4 : p.frecuencia === "quincenal" ? 2 : 1), 0);
-  return { msi: msiMensual, numMSI, recurrentes, recItems, numRec: recItems.length, total: msiMensual + recurrentes };
+  return { msi: msiMensual, numMSI, total: msiMensual };
 }
 
 function getTarjetaRecordatorios(tarjetas, pagosRec, gastos) {
@@ -511,11 +509,12 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
           <div key={t.id} className="rounded-xl px-3 py-2.5 mb-2 flex items-center gap-2" style={{ background: "#FEF3C7", border: "1px solid #FDE68A" }}>
             <span className="text-lg">💳</span>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Pago {t.nombre} pronto</div>
+              <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Pago {t.nombre}</div>
               <div className="text-xs" style={{ color: "var(--ink-soft)" }}>
-                Dia {t.dia_pago}{est && est.total > 0 ? ` · Total: ${money(est.total)}` : ""}
+                Dia {t.dia_pago}{est && est.total > 0 ? ` · MSI: ${money(est.total)}` : ""}
               </div>
             </div>
+            <button onClick={() => onPagarTarjeta(t, est)} className="text-xs font-bold px-2.5 py-1.5 rounded-lg" style={{ background: "var(--green)", color: "#fff" }}>Ya pague</button>
           </div>
         );
       })}
@@ -1088,24 +1087,17 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
 
             {est.total > 0 && (
               <div className="mt-2 rounded-lg px-2.5 py-2" style={{ background: "var(--paper)" }}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold" style={{ color: "var(--ink)" }}>A pagar este mes</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold" style={{ color: "var(--ink)" }}>MSI este mes</span>
                   <span className="num text-sm font-bold" style={{ color: "var(--ink)" }}>{money(est.total)}</span>
                 </div>
-                {est.numMSI > 0 && (
-                  <div className="text-[10px]" style={{ color: "var(--ink-soft)" }}>
-                    MSI: {money(est.msi)} ({est.numMSI} compra{est.numMSI === 1 ? "" : "s"})
-                  </div>
-                )}
-                {est.recItems.map((r) => (
-                  <div key={r.id} className="text-[10px]" style={{ color: "var(--ink-soft)" }}>
-                    {r.nombre}: {money(Number(r.monto_estimado))}/{FREQ_LABEL[r.frecuencia] || "Mensual"}
-                  </div>
-                ))}
+                <div className="text-[10px] mt-0.5" style={{ color: "var(--ink-soft)" }}>
+                  {est.numMSI} compra{est.numMSI === 1 ? "" : "s"} a meses activa{est.numMSI === 1 ? "" : "s"}
+                </div>
               </div>
             )}
             {est.total === 0 && (
-              <div className="text-[10px] mt-1.5" style={{ color: "var(--ink-soft)" }}>Sin cargos este mes</div>
+              <div className="text-[10px] mt-1.5" style={{ color: "var(--ink-soft)" }}>Sin MSI activos</div>
             )}
           </div>
         );
