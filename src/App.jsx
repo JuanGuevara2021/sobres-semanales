@@ -1451,7 +1451,7 @@ function TabAnalisis({ gastos, sobres, presupSemanal, onNavToWeek, inicioSobres 
         <ResponsiveContainer width="100%" height={180}>
           <BarChart data={porDia}>
             <XAxis dataKey="dia" tick={{ fontSize: 11, fill: "var(--ink-soft)" }} axisLine={false} tickLine={false} />
-            <YAxis hide />
+            <YAxis tick={{ fontSize: 10, fill: "var(--ink-soft)" }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => modoDia === "monto" ? (v >= 1000 ? `$${(v/1000).toFixed(0)}k` : `$${v}`) : v} />
             <Tooltip {...ttStyle} formatter={(v) => modoDia === "monto" ? money(v) : `${v} compras`} />
             <Bar dataKey={modoDia} fill="var(--ink)" radius={[4, 4, 0, 0]} />
           </BarChart>
