@@ -11,3 +11,9 @@ dist/
 # Sistema / editor
 .DS_Store
 *.log
+
+# Archivos temporales y scripts de generacion
+scripts/
+
+# Fotos de referencia
+fotos libreta/

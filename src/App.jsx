@@ -5,8 +5,13 @@ import Login from "./components/Login";
 import SetupPerfil from "./components/SetupPerfil";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, ReferenceLine, CartesianGrid,
+  PieChart, Pie, Cell, LineChart, Line, ReferenceLine, CartesianGrid, LabelList,
 } from "recharts";
+import {
+  BookOpen, Notebook, Mail, CreditCard, BarChart3,
+  ChevronLeft, ChevronRight, Settings, LogOut, Plus, Trash2, Pencil, X,
+  Image as ImageIcon, Check,
+} from "lucide-react";
 
 /* ============================================================
    SOBRES SEMANALES v2.1 — conectado a Supabase
@@ -88,7 +93,7 @@ const money = (n) =>
   }).format(n);
 
 /* ---------- helpers para pagos recurrentes ---------- */
-function getPagosProximos(pagos) {
+function getPagosProximos(pagos, gastos) {
   const hoy = new Date();
   const diaHoy = hoy.getDate();
   const mesHoy = hoy.getMonth();
@@ -99,13 +104,13 @@ function getPagosProximos(pagos) {
     if (p.tarjeta_id) return false;
     if (p.pospuesto_hasta && p.pospuesto_hasta >= toStr(hoy)) return false;
     if (p.frecuencia === "semanal") {
-      return !p.ultimo_pago || weekOf(p.ultimo_pago) !== wsHoy;
+      return !gastos.some((g) => g.nota === p.nombre && weekOf(g.fecha) === wsHoy);
     }
     const dia = p.dia_pago || 1;
     const diff = dia - diaHoy;
     const enRango = diff >= -1 && diff <= 3;
     if (!enRango) return false;
-    return !p.ultimo_pago || fromStr(p.ultimo_pago).getMonth() !== mesHoy || fromStr(p.ultimo_pago).getFullYear() !== anioHoy;
+    return !gastos.some((g) => g.nota === p.nombre && fromStr(g.fecha).getMonth() === mesHoy && fromStr(g.fecha).getFullYear() === anioHoy);
   });
 }
 
@@ -130,7 +135,7 @@ function calcEstimadoTarjeta(tarjeta, gastos, msiList) {
   return { msi: msiMensual, numMSI, total: msiMensual };
 }
 
-function getTarjetaRecordatorios(tarjetas, pagosRec) {
+function getTarjetaRecordatorios(tarjetas, pagosRec, gastos) {
   const hoy = new Date();
   const diaHoy = hoy.getDate();
   const mesHoy = hoy.getMonth();
@@ -139,12 +144,8 @@ function getTarjetaRecordatorios(tarjetas, pagosRec) {
     if (!t.activo || !t.dia_pago) return false;
     const diff = t.dia_pago - diaHoy;
     if (diff < -1 || diff > 3) return false;
-    const pagoRec = pagosRec.find((p) => p.tarjeta_id === t.id);
-    if (pagoRec?.ultimo_pago) {
-      const up = fromStr(pagoRec.ultimo_pago);
-      if (up.getMonth() === mesHoy && up.getFullYear() === anioHoy) return false;
-    }
-    return true;
+    const notaPago = `Pago ${t.nombre}`;
+    return !gastos.some((g) => g.nota === notaPago && fromStr(g.fecha).getMonth() === mesHoy && fromStr(g.fecha).getFullYear() === anioHoy);
   });
 }
 
@@ -182,10 +183,29 @@ async function autoClose(sobres, gastos, cierresExistentes, cuentaId) {
   if (!nuevos.length) return { nuevos: [], totalAhorrado: 0 };
   const { data: insertados, error } = await supabase.from("cierres").insert(nuevos).select();
   if (error) { console.error("Error al cerrar semanas:", error); return { nuevos: [], totalAhorrado: 0 }; }
+
+  // Actualizar saldo_acumulado de sobres acumula (arrastrar sobrante/deficit)
+  const acumulaSobres = sobres.filter((s) => !s.es_ahorro && s.tipo_cierre === "acumula");
+  for (const s of acumulaSobres) {
+    let net = 0;
+    for (const c of nuevos) {
+      const d = c.detalle.find((x) => x.sobre_id === s.id);
+      if (d) net += d.aportacion - d.gastado;
+    }
+    if (net !== 0) await supabase.from("sobres").update({ saldo_acumulado: Number(s.saldo_acumulado) + net }).eq("id", s.id);
+  }
+
+  // Actualizar Ahorro: aportacion propia + sobrantes recibidos - gastos desde ahorro
   const sobreAhorro = sobres.find((s) => s.es_ahorro);
   if (sobreAhorro) {
     const totalAhorrado = nuevos.reduce((a, c) => a + c.total_a_ahorro, 0);
-    if (totalAhorrado > 0) await supabase.from("sobres").update({ saldo_acumulado: Number(sobreAhorro.saldo_acumulado) + totalAhorrado }).eq("id", sobreAhorro.id);
+    const ahorroAport = Number(sobreAhorro.aportacion_semanal) * nuevos.length;
+    const semanasCerradas = nuevos.map((c) => c.semana);
+    const gastadoDeAhorro = gastos
+      .filter((g) => g.sobre_id === sobreAhorro.id && semanasCerradas.includes(weekOf(g.fecha)))
+      .reduce((a, g) => a + Number(g.monto), 0);
+    const netChange = ahorroAport + totalAhorrado - gastadoDeAhorro;
+    if (netChange !== 0) await supabase.from("sobres").update({ saldo_acumulado: Math.max(0, Number(sobreAhorro.saldo_acumulado) + netChange) }).eq("id", sobreAhorro.id);
   }
   return { nuevos: insertados || [], totalAhorrado: nuevos.reduce((a, c) => a + c.total_a_ahorro, 0) };
 }
@@ -226,27 +246,29 @@ function SobreCard({ sobre, gastado }) {
   );
 }
 
-function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onClose, prefill }) {
+function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClose, prefill, editingId }) {
+  const isEdit = !!editingId;
   const hoy = toStr(new Date());
   const gastables = sobres.filter((s) => !s.es_ahorro);
-  const [monto, setMonto] = useState(prefill?.monto || "");
-  const [sobreId, setSobreId] = useState(prefill?.fuera ? "" : prefill?.sobre_id || gastables[0]?.id || "");
-  const [fueraDeSobres, setFueraDeSobres] = useState(prefill?.fuera || false);
+  const [monto, setMonto] = useState(prefill?.monto ? String(prefill.monto) : "");
+  const [sobreId, setSobreId] = useState(prefill?.fuera ? "" : prefill?.sobre_id || (isEdit ? "" : gastables[0]?.id || ""));
+  const [fueraDeSobres, setFueraDeSobres] = useState(prefill?.fuera || (isEdit && !prefill?.sobre_id));
   const [medio, setMedio] = useState(prefill?.medio_pago || "efectivo");
   const [tarjetaId, setTarjetaId] = useState(prefill?.tarjeta_id || "");
   const [categoria, setCategoria] = useState(prefill?.categoria || gastables[0]?.categoria_default || "casa");
   const [nota, setNota] = useState(prefill?.nota || "");
-  const [fecha, setFecha] = useState(isCurrent ? hoy : viewedWS);
+  const [fecha, setFecha] = useState(prefill?.fecha || (isCurrent ? hoy : viewedWS));
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
 
   const dias = [];
   for (let i = 0; i < 7; i++) { const d = toStr(addDays(fromStr(viewedWS), i)); if (isCurrent && d > hoy) break; dias.push(d); }
+  if (isEdit && prefill?.fecha && !dias.includes(prefill.fecha)) dias.push(prefill.fecha);
 
   const tarjetasActivas = (tarjetas || []).filter((t) => t.activo);
 
-  const seleccionarSobre = (id) => { setSobreId(id); setFueraDeSobres(false); const s = sobres.find((x) => x.id === id); if (s) setCategoria(s.categoria_default); };
-  const marcarFuera = () => { setFueraDeSobres(true); setSobreId(""); setCategoria("casa"); };
+  const seleccionarSobre = (id) => { setSobreId(id); setFueraDeSobres(false); const s = sobres.find((x) => x.id === id); if (s && !isEdit) setCategoria(s.categoria_default); };
+  const marcarFuera = () => { setFueraDeSobres(true); setSobreId(""); if (!isEdit) setCategoria("casa"); };
 
   const submit = async () => {
     const m = parseFloat(monto);
@@ -255,7 +277,9 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onClose, pref
     if (medio === "credito" && !tarjetaId && tarjetasActivas.length > 0) return setError("Elige la tarjeta.");
     setGuardando(true); setError("");
     try {
-      await onAdd({ fecha, monto: m, sobre_id: fueraDeSobres ? null : sobreId, medio_pago: medio, tarjeta_id: medio === "credito" && tarjetaId ? tarjetaId : null, categoria, nota: nota.trim() });
+      const data = { fecha, monto: m, sobre_id: fueraDeSobres ? null : sobreId, medio_pago: medio, tarjeta_id: medio === "credito" && tarjetaId ? tarjetaId : null, categoria, nota: nota.trim() };
+      if (isEdit) await onEdit(editingId, data);
+      else await onAdd(data);
       onClose();
     } catch (err) { setError(err.message || "Error al guardar."); setGuardando(false); }
   };
@@ -264,7 +288,7 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onClose, pref
     <div className="fixed inset-0 z-30 flex items-end justify-center" style={{ background: "rgba(34,50,74,.45)" }} onClick={onClose}>
       <div className="w-full max-w-md rounded-t-2xl p-4 pb-6 overflow-y-auto" style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>Registrar gasto</h2>
+          <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>{isEdit ? "Modificar gasto" : "Registrar gasto"}</h2>
           <button className="text-sm px-2 py-1" style={{ color: "var(--ink-soft)" }} onClick={onClose}>Cerrar</button>
         </div>
         <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Cuanto?</label>
@@ -278,6 +302,12 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onClose, pref
             <button key={s.id} onClick={() => seleccionarSobre(s.id)} className="chip"
               style={!fueraDeSobres && sobreId === s.id ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
               {s.emoji} {s.nombre}
+            </button>
+          ))}
+          {sobres.filter((s) => s.es_ahorro).map((s) => (
+            <button key={s.id} onClick={() => seleccionarSobre(s.id)} className="chip"
+              style={!fueraDeSobres && sobreId === s.id ? { background: "var(--green)", color: "#fff", borderColor: "var(--green)" } : {}}>
+              🐷 {s.nombre}
             </button>
           ))}
           <button onClick={marcarFuera} className="chip" style={fueraDeSobres ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
@@ -337,45 +367,55 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onClose, pref
         {error && <div className="text-xs mb-2" style={{ color: "var(--red)" }}>{error}</div>}
         <button onClick={submit} disabled={guardando} className="w-full rounded-xl py-3 font-bold text-sm"
           style={{ background: "var(--green)", color: "#fff", opacity: guardando ? 0.6 : 1 }}>
-          {guardando ? "Guardando..." : "Guardar gasto"}
+          {guardando ? "Guardando..." : isEdit ? "Guardar cambios" : "Guardar gasto"}
         </button>
       </div>
     </div>
   );
 }
 
-/* ---------- Modal para editar un gasto ---------- */
-function EditGastoModal({ gasto, onSave, onClose }) {
-  const [monto, setMonto] = useState(String(gasto.monto));
-  const [nota, setNota] = useState(gasto.nota || "");
+
+/* ---------- Modal para configurar saldos iniciales ---------- */
+function ConfigSaldosModal({ sobres, onSave, onClose }) {
+  const todos = [...sobres.filter((s) => !s.es_ahorro), ...sobres.filter((s) => s.es_ahorro)];
+  const [saldos, setSaldos] = useState(
+    Object.fromEntries(todos.map((s) => [s.id, String(s.saldo_acumulado || 0)]))
+  );
   const [guardando, setGuardando] = useState(false);
 
   const submit = async () => {
-    const m = parseFloat(monto);
-    if (!m || m <= 0) return;
     setGuardando(true);
-    try { await onSave(gasto.id, { monto: m, nota: nota.trim() }); onClose(); }
+    const updates = Object.entries(saldos).map(([id, val]) => ({ id, saldo_acumulado: parseFloat(val) || 0 }));
+    try { await onSave(updates); onClose(); }
     catch { setGuardando(false); }
   };
 
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center" style={{ background: "rgba(34,50,74,.45)" }} onClick={onClose}>
-      <div className="w-full max-w-xs rounded-2xl p-4" style={{ background: "var(--card)" }} onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-sm font-bold mb-3" style={{ color: "var(--ink)" }}>Editar gasto</h3>
-        <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Monto</label>
-        <input type="number" inputMode="decimal" value={monto} onChange={(e) => setMonto(e.target.value)} autoFocus
-          className="w-full num text-xl font-semibold rounded-xl px-3 py-2 mb-2 outline-none"
-          style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }} />
-        <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Nota</label>
-        <input type="text" value={nota} onChange={(e) => setNota(e.target.value)}
-          className="w-full rounded-xl px-3 py-2 text-sm mb-3 outline-none"
-          style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }} />
-        <div className="flex gap-2">
-          <button onClick={submit} disabled={guardando} className="flex-1 rounded-xl py-2.5 text-sm font-bold" style={{ background: "var(--green)", color: "#fff" }}>
-            {guardando ? "..." : "Guardar"}
-          </button>
-          <button onClick={onClose} className="px-4 rounded-xl py-2.5 text-sm font-semibold" style={{ color: "var(--ink-soft)" }}>Cancelar</button>
+    <div className="fixed inset-0 z-30 flex items-end justify-center" style={{ background: "rgba(34,50,74,.45)" }} onClick={onClose}>
+      <div className="w-full max-w-md rounded-t-2xl p-4 pb-6 overflow-y-auto" style={{ background: "var(--card)", maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>Configurar saldos</h2>
+          <button className="text-sm px-2 py-1" style={{ color: "var(--ink-soft)" }} onClick={onClose}>Cerrar</button>
         </div>
+        <p className="text-xs mb-4" style={{ color: "var(--ink-soft)" }}>
+          Pon el saldo actual de cada sobre. De aqui en adelante el sistema los actualiza solo.
+        </p>
+        {todos.map((s) => (
+          <div key={s.id} className="flex items-center gap-2 mb-2.5">
+            <span className="text-lg">{s.emoji}</span>
+            <span className="flex-1 text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>
+              {s.nombre}{s.es_ahorro ? " (Ahorro)" : ""}
+            </span>
+            <span className="text-sm" style={{ color: "var(--ink-soft)" }}>$</span>
+            <input type="number" inputMode="decimal" value={saldos[s.id]} onChange={(e) => setSaldos({ ...saldos, [s.id]: e.target.value })}
+              className="w-24 num text-sm font-semibold rounded-xl px-2 py-1.5 text-right outline-none"
+              style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }} />
+          </div>
+        ))}
+        <button onClick={submit} disabled={guardando} className="w-full rounded-xl py-3 font-bold text-sm mt-3"
+          style={{ background: "var(--green)", color: "#fff", opacity: guardando ? 0.6 : 1 }}>
+          {guardando ? "Guardando..." : "Guardar saldos"}
+        </button>
       </div>
     </div>
   );
@@ -411,8 +451,8 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
   const porDia = gastosFiltrados.reduce((acc, g) => { (acc[g.fecha] = acc[g.fecha] || []).push(g); return acc; }, {});
   const sobreDe = (id) => sobres.find((s) => s.id === id);
   const tarjetaDe = (id) => (tarjetas || []).find((t) => t.id === id);
-  const pagosProximos = isCurrent ? getPagosProximos(pagos) : [];
-  const tarjetasProximas = isCurrent ? getTarjetaRecordatorios(tarjetas || [], pagos) : [];
+  const pagosProximos = isCurrent ? getPagosProximos(pagos, gastos) : [];
+  const tarjetasProximas = isCurrent ? getTarjetaRecordatorios(tarjetas || [], pagos, gastos) : [];
 
   return (
     <div>
@@ -564,13 +604,18 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
       ))}
 
       {showForm && <GastoForm sobres={sobres} tarjetas={tarjetas} viewedWS={viewedWS} isCurrent={isCurrent} onAdd={onAdd} onClose={() => setShowForm(false)} />}
-      {editingGasto && <EditGastoModal gasto={editingGasto} onSave={onEditGasto} onClose={() => setEditingGasto(null)} />}
+      {editingGasto && <GastoForm
+        sobres={sobres} tarjetas={tarjetas} viewedWS={viewedWS} isCurrent={isCurrent}
+        onEdit={onEditGasto} onClose={() => setEditingGasto(null)}
+        editingId={editingGasto.id}
+        prefill={{ monto: editingGasto.monto, sobre_id: editingGasto.sobre_id, fuera: !editingGasto.sobre_id, medio_pago: editingGasto.medio_pago, tarjeta_id: editingGasto.tarjeta_id, categoria: editingGasto.categoria, nota: editingGasto.nota || "", fecha: editingGasto.fecha }}
+      />}
     </div>
   );
 }
 
 /* ---------- Tab Sobres ---------- */
-function TabSobres({ sobres, gastos, presupSemanal, onSaveSobre, onDeleteSobre, onSavePresup }) {
+function TabSobres({ sobres, gastos, cierres, presupSemanal, onSaveSobre, onDeleteSobre, onSavePresup, onConfigSaldos }) {
   const [editing, setEditing] = useState(null);
   const [nombre, setNombre] = useState("");
   const [emoji, setEmoji] = useState(EMOJIS[0]);
@@ -582,6 +627,7 @@ function TabSobres({ sobres, gastos, presupSemanal, onSaveSobre, onDeleteSobre, 
   const [msg, setMsg] = useState("");
   const [editPresup, setEditPresup] = useState(false);
   const [tempPresup, setTempPresup] = useState(String(presupSemanal));
+  const [showConfig, setShowConfig] = useState(false);
 
   const gastables = sobres.filter((s) => !s.es_ahorro);
   const sumaSobres = sobres.reduce((a, s) => a + Number(s.aportacion_semanal), 0);
@@ -673,6 +719,11 @@ function TabSobres({ sobres, gastos, presupSemanal, onSaveSobre, onDeleteSobre, 
         <div className="text-xs mt-1" style={{ color: "var(--ink-soft)" }}>Suma de sobres: <span className="num font-semibold">{money(sumaSobres)}</span></div>
       </div>
 
+      <button onClick={() => setShowConfig(true)} className="w-full rounded-xl py-2 text-sm font-semibold mb-3"
+        style={{ color: "var(--ink)", border: "1px solid var(--line)", background: "var(--card)" }}>
+        Configurar saldos actuales
+      </button>
+
       <h2 className="text-base font-bold mb-3" style={{ color: "var(--ink)" }}>Mis sobres</h2>
       {msg && editing === null && <div className="text-xs mb-2 rounded-xl px-3 py-2" style={{ background: "#FBEAE5", color: "var(--red)" }}>{msg}</div>}
 
@@ -696,19 +747,201 @@ function TabSobres({ sobres, gastos, presupSemanal, onSaveSobre, onDeleteSobre, 
       {editing === "nuevo" ? formRow : (
         <button onClick={startNew} className="w-full rounded-xl py-2.5 text-sm font-bold mt-1" style={{ border: "1.5px dashed var(--ink-soft)", color: "var(--ink)" }}>+ Agregar sobre</button>
       )}
-      <p className="text-xs mt-4 leading-relaxed" style={{ color: "var(--ink-soft)" }}>
+      <p className="text-xs mt-4 mb-6 leading-relaxed" style={{ color: "var(--ink-soft)" }}>
         🐷 El sobre Ahorro recibe automaticamente lo que sobra de los sobres tipo "ahorro". Los tipo "acumula" arrastran su saldo.
       </p>
+
+      {/* Seccion Ahorro */}
+      {(() => {
+        const sobreAhorro = sobres.find((s) => s.es_ahorro);
+        const saldoAhorro = sobreAhorro ? Number(sobreAhorro.saldo_acumulado) : 0;
+        const retiros = sobreAhorro ? gastos.filter((g) => g.sobre_id === sobreAhorro.id).sort((a, b) => a.fecha < b.fecha ? 1 : -1) : [];
+        const cierresOrden = [...(cierres || [])].sort((a, b) => (a.semana < b.semana ? 1 : -1));
+        return (
+          <>
+            <div className="rounded-2xl p-4 mb-3 text-center" style={{ background: "var(--green)" }}>
+              <div className="text-xs font-semibold" style={{ color: "rgba(255,255,255,.75)" }}>🐷 Ahorro acumulado</div>
+              <div className="num text-3xl font-bold text-white mt-1">{money(saldoAhorro)}</div>
+              <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,.75)" }}>
+                {cierresOrden.length} semana{cierresOrden.length === 1 ? "" : "s"} cerrada{cierresOrden.length === 1 ? "" : "s"}
+                {sobreAhorro ? ` · +${money(Number(sobreAhorro.aportacion_semanal))}/sem` : ""}
+              </div>
+            </div>
+            {retiros.length > 0 && (
+              <div className="mb-3">
+                <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--ink-soft)" }}>Gastos desde ahorro</h3>
+                {retiros.map((g) => (
+                  <div key={g.id} className="flex items-center justify-between rounded-xl px-3 py-2 mb-1" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+                    <div>
+                      <div className="text-sm font-medium" style={{ color: "var(--ink)" }}>{g.nota || "Gasto"}</div>
+                      <div className="text-xs" style={{ color: "var(--ink-soft)" }}>{fmtDia(g.fecha)}</div>
+                    </div>
+                    <div className="num text-sm font-semibold" style={{ color: "var(--red)" }}>-{money(Number(g.monto))}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {cierresOrden.length === 0 && retiros.length === 0 && (
+              <div className="text-sm text-center py-4 mb-3" style={{ color: "var(--ink-soft)" }}>
+                Cuando termine el viernes, lo que sobre caera al ahorro.
+              </div>
+            )}
+            {cierresOrden.map((c) => {
+              const detalle = Array.isArray(c.detalle) ? c.detalle : [];
+              return (
+                <div key={c.semana} className="rounded-xl mb-2 overflow-hidden" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+                  <div className="flex items-center justify-between px-3 py-2.5">
+                    <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{weekLabel(c.semana)}</span>
+                    <span className="num text-sm font-bold" style={{ color: "var(--green)" }}>+{money(Number(c.total_a_ahorro))}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        );
+      })()}
+
+      {showConfig && <ConfigSaldosModal sobres={sobres} onSave={onConfigSaldos} onClose={() => setShowConfig(false)} />}
+    </div>
+  );
+}
+
+/* ---------- Tab Libreta ---------- */
+function TabLibreta({ sobres, gastos, tarjetas, onEditGasto, onDelete }) {
+  const [offsetLib, setOffsetLib] = useState(0);
+  const [filtro, setFiltro] = useState("todos");
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [editingGasto, setEditingGasto] = useState(null);
+
+  const hoy = new Date();
+  const viewedWS = toStr(addDays(weekStartOf(hoy), offsetLib * 7));
+  const isCurrent = offsetLib === 0;
+
+  const gastosSemana = gastos
+    .filter((g) => weekOf(g.fecha) === viewedWS)
+    .sort((a, b) => (a.fecha === b.fecha ? new Date(b.creado_en) - new Date(a.creado_en) : a.fecha < b.fecha ? 1 : -1));
+
+  const gastosFiltrados = gastosSemana.filter((g) => {
+    if (filtro === "sobres") return g.sobre_id != null;
+    if (filtro === "fuera") return g.sobre_id == null;
+    return true;
+  });
+
+  const porDia = gastosFiltrados.reduce((acc, g) => { (acc[g.fecha] = acc[g.fecha] || []).push(g); return acc; }, {});
+  const sobreDe = (id) => sobres.find((s) => s.id === id);
+  const tarjetaDe = (id) => (tarjetas || []).find((t) => t.id === id);
+  const totalSemana = gastosSemana.reduce((a, g) => a + Number(g.monto), 0);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <button className="nav-arrow" onClick={() => setOffsetLib(offsetLib - 1)}>‹</button>
+        <div className="text-center">
+          <div className="text-sm font-bold" style={{ color: "var(--ink)" }}>{weekLabel(viewedWS)}</div>
+          <div className="text-xs" style={{ color: "var(--ink-soft)" }}>{isCurrent ? "Semana actual" : `Hace ${Math.abs(offsetLib)} semana${Math.abs(offsetLib) > 1 ? "s" : ""}`}</div>
+        </div>
+        <button className="nav-arrow" onClick={() => setOffsetLib(Math.min(0, offsetLib + 1))} style={offsetLib === 0 ? { opacity: 0.25 } : {}}>›</button>
+      </div>
+
+      <div className="rounded-xl p-3 mb-3 text-center" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+        <div className="text-xs" style={{ color: "var(--ink-soft)" }}>Total de la semana</div>
+        <div className="num text-2xl font-bold" style={{ color: "var(--ink)" }}>{money(totalSemana)}</div>
+        <div className="text-xs" style={{ color: "var(--ink-soft)" }}>{gastosSemana.length} gasto{gastosSemana.length === 1 ? "" : "s"}</div>
+      </div>
+
+      {totalSemana > 0 && (
+        <div className="rounded-xl p-3 mb-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+          <div className="flex gap-0.5 h-2 rounded-full overflow-hidden mb-1.5">
+            {CATEGORIAS.map((c) => {
+              const m = gastosSemana.filter((g) => g.categoria === c).reduce((a, g) => a + Number(g.monto), 0);
+              if (!m) return null;
+              return <div key={c} style={{ width: `${(m / totalSemana) * 100}%`, background: CAT_COLOR[c] }} />;
+            })}
+          </div>
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+            {CATEGORIAS.map((c) => {
+              const m = gastosSemana.filter((g) => g.categoria === c).reduce((a, g) => a + Number(g.monto), 0);
+              if (!m) return null;
+              return (
+                <span key={c} className="text-[10px]" style={{ color: "var(--ink-soft)" }}>
+                  <span className="inline-block w-1.5 h-1.5 rounded-full mr-0.5 align-middle" style={{ background: CAT_COLOR[c] }} />
+                  {CAT_LABEL[c]} {money(m)} ({Math.round((m / totalSemana) * 100)}%)
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--ink-soft)" }}>Gastos</h3>
+        <div className="flex gap-1">
+          {[["todos", "Todos"], ["sobres", "Sobres"], ["fuera", "Fuera"]].map(([v, l]) => (
+            <button key={v} onClick={() => setFiltro(v)} className="text-[10px] font-semibold px-2 py-1 rounded-full"
+              style={filtro === v ? { background: "var(--ink)", color: "#fff" } : { background: "var(--line)", color: "var(--ink)" }}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {gastosFiltrados.length === 0 && (
+        <div className="text-sm py-6 text-center" style={{ color: "var(--ink-soft)" }}>
+          Sin gastos{filtro !== "todos" ? " en este filtro" : " esta semana"}.
+        </div>
+      )}
+      {Object.keys(porDia).map((dia) => (
+        <div key={dia} className="mb-3">
+          <div className="text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>{fmtDia(dia)}</div>
+          {porDia[dia].map((g) => {
+            const s = sobreDe(g.sobre_id);
+            const tc = tarjetaDe(g.tarjeta_id);
+            const catColor = CAT_COLOR[g.categoria] || "#666";
+            return (
+              <div key={g.id} className="flex items-center gap-2 rounded-xl px-3 py-2 mb-1" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+                <span>{s ? s.emoji : "🚫"}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{g.nota || (s ? s.nombre : "Fuera de sobres")}</span>
+                    <span className="inline-block text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ background: catColor + "18", color: catColor }}>
+                      {CAT_LABEL[g.categoria]}
+                    </span>
+                  </div>
+                  <div className="text-xs" style={{ color: "var(--ink-soft)" }}>
+                    {s ? s.nombre + " · " : "Fuera · "}{MEDIOS_LABEL[g.medio_pago]}
+                    {tc ? ` · 💳 ${tc.nombre}` : ""}
+                  </div>
+                </div>
+                <div className="num text-sm font-semibold" style={{ color: "var(--ink)" }}>{money(Number(g.monto))}</div>
+                <button className="text-xs px-1 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => setEditingGasto(g)}>✎</button>
+                {pendingDelete === g.id ? (
+                  <button className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: "var(--red)", color: "#fff" }}
+                    onClick={() => { onDelete(g.id); setPendingDelete(null); }}>Borrar?</button>
+                ) : (
+                  <button className="text-xs px-1 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => setPendingDelete(g.id)}>✕</button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+      {editingGasto && <GastoForm
+        sobres={sobres} tarjetas={tarjetas} viewedWS={weekOf(editingGasto.fecha)} isCurrent={weekOf(editingGasto.fecha) === toStr(weekStartOf(new Date()))}
+        onEdit={onEditGasto} onClose={() => setEditingGasto(null)}
+        editingId={editingGasto.id}
+        prefill={{ monto: editingGasto.monto, sobre_id: editingGasto.sobre_id, fuera: !editingGasto.sobre_id, medio_pago: editingGasto.medio_pago, tarjeta_id: editingGasto.tarjeta_id, categoria: editingGasto.categoria, nota: editingGasto.nota || "", fecha: editingGasto.fecha }}
+      />}
     </div>
   );
 }
 
 /* ---------- Tab Ahorro ---------- */
-function TabAhorro({ sobres, cierres }) {
+function TabAhorro({ sobres, cierres, gastos }) {
   const [open, setOpen] = useState(null);
   const cierresOrden = [...cierres].sort((a, b) => (a.semana < b.semana ? 1 : -1));
   const sobreAhorro = sobres.find((s) => s.es_ahorro);
-  const saldoAhorro = sobreAhorro ? Number(sobreAhorro.saldo_acumulado) : cierresOrden.reduce((a, c) => a + Number(c.total_a_ahorro), 0);
+  const saldoAhorro = sobreAhorro ? Number(sobreAhorro.saldo_acumulado) : 0;
+  const retiros = sobreAhorro ? gastos.filter((g) => g.sobre_id === sobreAhorro.id).sort((a, b) => a.fecha < b.fecha ? 1 : -1) : [];
 
   return (
     <div>
@@ -720,7 +953,23 @@ function TabAhorro({ sobres, cierres }) {
           {sobreAhorro ? ` · +${money(Number(sobreAhorro.aportacion_semanal))}/sem` : ""}
         </div>
       </div>
-      {cierresOrden.length === 0 && <div className="text-sm text-center py-6 leading-relaxed" style={{ color: "var(--ink-soft)" }}>Aun no hay semanas cerradas.<br />Cuando termine el viernes, lo que sobre caera aqui solito.</div>}
+
+      {retiros.length > 0 && (
+        <div className="mb-4">
+          <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--ink-soft)" }}>Gastos desde ahorro</h3>
+          {retiros.map((g) => (
+            <div key={g.id} className="flex items-center justify-between rounded-xl px-3 py-2 mb-1" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+              <div>
+                <div className="text-sm font-medium" style={{ color: "var(--ink)" }}>{g.nota || "Gasto"}</div>
+                <div className="text-xs" style={{ color: "var(--ink-soft)" }}>{fmtDia(g.fecha)}</div>
+              </div>
+              <div className="num text-sm font-semibold" style={{ color: "var(--red)" }}>-{money(Number(g.monto))}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {cierresOrden.length === 0 && retiros.length === 0 && <div className="text-sm text-center py-6 leading-relaxed" style={{ color: "var(--ink-soft)" }}>Aun no hay semanas cerradas.<br />Cuando termine el viernes, lo que sobre caera aqui solito.</div>}
       {cierresOrden.map((c) => {
         const detalle = Array.isArray(c.detalle) ? c.detalle : [];
         return (
@@ -751,6 +1000,7 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
   const [editing, setEditing] = useState(null);
   const [nombre, setNombre] = useState(""); const [monto, setMonto] = useState(""); const [diaPago, setDiaPago] = useState("");
   const [frecuencia, setFrecuencia] = useState("mensual"); const [medio, setMedio] = useState("debito");
+  const [pagoTarjetaId, setPagoTarjetaId] = useState("");
   const [sobreId, setSobreId] = useState(""); const [categoria, setCategoria] = useState("casa");
   const [msg, setMsg] = useState(""); const [pendingDel, setPendingDel] = useState(null);
 
@@ -765,15 +1015,15 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
   const [tDiaPago, setTDiaPago] = useState(""); const [tMsg, setTMsg] = useState("");
 
   const gastables = sobres.filter((s) => !s.es_ahorro);
-  const pagosNoTarjeta = pagos.filter((p) => p.activo && !p.tarjeta_id);
-  const totalMensual = pagosNoTarjeta.reduce((a, p) => a + Number(p.monto_estimado) * (p.frecuencia === "semanal" ? 4 : p.frecuencia === "quincenal" ? 2 : 1), 0);
+  const pagosActivos = pagos.filter((p) => p.activo);
+  const totalMensual = pagosActivos.reduce((a, p) => a + Number(p.monto_estimado) * (p.frecuencia === "semanal" ? 4 : p.frecuencia === "quincenal" ? 2 : 1), 0);
   const tarjetasActivas = (tarjetas || []).filter((t) => t.activo);
 
-  const startEditPago = (p) => { setEditing(p.id); setNombre(p.nombre); setMonto(String(p.monto_estimado)); setDiaPago(p.dia_pago != null ? String(p.dia_pago) : ""); setFrecuencia(p.frecuencia || "mensual"); setMedio(p.medio_pago || "debito"); setSobreId(p.destino_sobre_id || ""); setCategoria(p.categoria); setMsg(""); };
-  const startNewPago = () => { setEditing("nuevo"); setNombre(""); setMonto(""); setDiaPago(""); setFrecuencia("mensual"); setMedio("debito"); setSobreId(""); setCategoria("casa"); setMsg(""); };
+  const startEditPago = (p) => { setEditing(p.id); setNombre(p.nombre); setMonto(String(p.monto_estimado)); setDiaPago(p.dia_pago != null ? String(p.dia_pago) : ""); setFrecuencia(p.frecuencia || "mensual"); setMedio(p.medio_pago || "debito"); setPagoTarjetaId(p.tarjeta_id || ""); setSobreId(p.destino_sobre_id || ""); setCategoria(p.categoria); setMsg(""); };
+  const startNewPago = () => { setEditing("nuevo"); setNombre(""); setMonto(""); setDiaPago(""); setFrecuencia("mensual"); setMedio("debito"); setPagoTarjetaId(""); setSobreId(""); setCategoria("casa"); setMsg(""); };
   const savePago = async () => {
     if (!nombre.trim()) return setMsg("Ponle nombre."); const m = parseFloat(monto); if (isNaN(m) || m <= 0) return setMsg("Monto invalido.");
-    try { await onSavePago({ id: editing === "nuevo" ? undefined : editing, nombre: nombre.trim(), monto_estimado: m, dia_pago: diaPago ? parseInt(diaPago) : null, frecuencia, medio_pago: medio, destino_sobre_id: sobreId || null, categoria, activo: true }); setEditing(null); }
+    try { await onSavePago({ id: editing === "nuevo" ? undefined : editing, nombre: nombre.trim(), monto_estimado: m, dia_pago: diaPago ? parseInt(diaPago) : null, frecuencia, medio_pago: medio, tarjeta_id: medio === "credito" && pagoTarjetaId ? pagoTarjetaId : null, destino_sobre_id: sobreId || null, categoria, activo: true }); setEditing(null); }
     catch (err) { setMsg(err.message || "Error al guardar."); }
   };
   const tryDeletePago = async (id) => { if (pendingDel !== id) { setPendingDel(id); return; } try { await onDeletePago(id); setPendingDel(null); } catch (err) { setMsg(err.message); } };
@@ -865,7 +1115,7 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
       <h2 className="text-base font-bold mb-1" style={{ color: "var(--ink)" }}>🔄 Pagos recurrentes</h2>
       <div className="text-xs mb-3" style={{ color: "var(--ink-soft)" }}>Carga mensual: <span className="num font-semibold">{money(totalMensual)}</span></div>
 
-      {pagosNoTarjeta.map((p) => editing === p.id ? <div key={p.id}>{pagoForm()}</div> : (
+      {pagosActivos.map((p) => (
         <div key={p.id} className="rounded-xl px-3 py-2.5 mb-2" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
           <div className="flex items-center gap-2">
             <div className="flex-1 min-w-0">
@@ -875,6 +1125,7 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
               </div>
               <div className="text-xs num" style={{ color: "var(--ink-soft)" }}>
                 {money(Number(p.monto_estimado))} · {FREQ_LABEL[p.frecuencia] || "Mensual"}{p.dia_pago ? ` · dia ${p.dia_pago}` : ""}
+                {p.tarjeta_id ? ` · 💳 ${tarjetasActivas.find((t) => t.id === p.tarjeta_id)?.nombre || ""}` : ""}
                 {p.destino_sobre_id ? ` → ${sobres.find((s) => s.id === p.destino_sobre_id)?.nombre || ""}` : " → Fuera"}
               </div>
             </div>
@@ -886,8 +1137,8 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
           </div>
         </div>
       ))}
-      {editing === "nuevo" && pagoForm()}
-      {editing !== "nuevo" && <button onClick={startNewPago} className="w-full rounded-xl py-2 text-sm font-bold mt-1 mb-6" style={{ border: "1.5px dashed var(--ink-soft)", color: "var(--ink)" }}>+ Agregar pago</button>}
+      <button onClick={startNewPago} className="w-full rounded-xl py-2 text-sm font-bold mt-1 mb-6" style={{ border: "1.5px dashed var(--ink-soft)", color: "var(--ink)" }}>+ Agregar pago</button>
+      {editing && pagoForm()}
 
       {/* === COMPRAS MSI === */}
       <h2 className="text-base font-bold mb-1" style={{ color: "var(--ink)" }}>📅 Compras a meses (MSI)</h2>
@@ -956,35 +1207,95 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
 
   function pagoForm() {
     return (
-      <div className="rounded-xl p-3 mb-2" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
-        <div className="flex gap-2 mb-2">
-          <input type="text" placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} className="flex-1 rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
-          <input type="number" inputMode="decimal" placeholder="Monto" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-24 num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
-        </div>
-        <div className="flex gap-2 mb-2">
-          <select value={frecuencia} onChange={(e) => setFrecuencia(e.target.value)} className="flex-1 rounded-xl px-3 py-2 text-sm" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }}>
-            <option value="semanal">Semanal</option><option value="quincenal">Quincenal</option><option value="mensual">Mensual</option>
-          </select>
-          {frecuencia !== "semanal" && <input type="number" inputMode="numeric" placeholder="Dia mes" value={diaPago} onChange={(e) => setDiaPago(e.target.value)} className="w-24 num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />}
-        </div>
-        <div className="flex gap-2 mb-2">
-          <select value={medio} onChange={(e) => setMedio(e.target.value)} className="flex-1 rounded-xl px-3 py-2 text-sm" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }}>
-            {MEDIOS.map((m) => <option key={m} value={m}>{MEDIOS_LABEL[m]}</option>)}
-          </select>
-          <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className="flex-1 rounded-xl px-3 py-2 text-sm" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }}>
-            {CATEGORIAS.map((c) => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
-          </select>
-        </div>
-        <div className="mb-2">
-          <select value={sobreId} onChange={(e) => setSobreId(e.target.value)} className="w-full rounded-xl px-3 py-2 text-sm" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }}>
-            <option value="">Fuera de sobres</option>
-            {gastables.map((s) => <option key={s.id} value={s.id}>{s.emoji} {s.nombre}</option>)}
-          </select>
-        </div>
-        {msg && <div className="text-xs mb-2" style={{ color: "var(--red)" }}>{msg}</div>}
-        <div className="flex gap-2">
-          <button onClick={savePago} className="flex-1 rounded-xl py-2 text-sm font-bold" style={{ background: "var(--green)", color: "#fff" }}>Guardar</button>
-          <button onClick={() => setEditing(null)} className="px-4 rounded-xl py-2 text-sm font-semibold" style={{ color: "var(--ink-soft)" }}>Cancelar</button>
+      <div className="fixed inset-0 z-30 flex items-end justify-center" style={{ background: "rgba(34,50,74,.45)" }} onClick={() => setEditing(null)}>
+        <div className="w-full max-w-md rounded-t-2xl p-4 pb-6 overflow-y-auto" style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>{editing === "nuevo" ? "Nuevo pago recurrente" : "Editar pago recurrente"}</h2>
+            <button className="text-sm px-2 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => setEditing(null)}>Cerrar</button>
+          </div>
+
+          <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Nombre</label>
+          <input type="text" placeholder="ej: Internet, Spotify..." value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus
+            className="w-full rounded-xl px-3 py-2 text-sm outline-none mb-3"
+            style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+
+          <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Cuanto?</label>
+          <input type="number" inputMode="decimal" placeholder="0.00" value={monto} onChange={(e) => setMonto(e.target.value)}
+            className="w-full num text-2xl font-semibold rounded-xl px-3 py-2 mb-3 outline-none"
+            style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }} />
+
+          <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Cada cuando?</label>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {[["semanal", "Semanal"], ["quincenal", "Quincenal"], ["mensual", "Mensual"]].map(([v, l]) => (
+              <button key={v} onClick={() => setFrecuencia(v)} className="chip"
+                style={frecuencia === v ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
+                {l}
+              </button>
+            ))}
+          </div>
+
+          {frecuencia !== "semanal" && (
+            <>
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Dia del mes</label>
+              <input type="number" inputMode="numeric" placeholder="ej: 15" min="1" max="31" value={diaPago} onChange={(e) => setDiaPago(e.target.value)}
+                className="w-24 num rounded-xl px-3 py-2 text-sm outline-none mb-3"
+                style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+            </>
+          )}
+
+          <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>De que sobre sale?</label>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {gastables.map((s) => (
+              <button key={s.id} onClick={() => setSobreId(s.id)} className="chip"
+                style={sobreId === s.id ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
+                {s.emoji} {s.nombre}
+              </button>
+            ))}
+            <button onClick={() => setSobreId("")} className="chip"
+              style={!sobreId ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
+              🚫 Fuera de sobres
+            </button>
+          </div>
+
+          <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Categoria</label>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {CATEGORIAS.map((c) => (
+              <button key={c} onClick={() => setCategoria(c)} className="chip"
+                style={categoria === c ? { background: CAT_COLOR[c], color: "#fff", borderColor: CAT_COLOR[c] } : {}}>
+                {CAT_LABEL[c]}
+              </button>
+            ))}
+          </div>
+
+          <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Medio de pago</label>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {MEDIOS.map((m) => (
+              <button key={m} onClick={() => { setMedio(m); if (m !== "credito") setPagoTarjetaId(""); }} className="chip"
+                style={medio === m ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
+                {MEDIOS_LABEL[m]}
+              </button>
+            ))}
+          </div>
+
+          {medio === "credito" && tarjetasActivas.length > 0 && (
+            <>
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Tarjeta</label>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {tarjetasActivas.map((t) => (
+                  <button key={t.id} onClick={() => setPagoTarjetaId(t.id)} className="chip"
+                    style={pagoTarjetaId === t.id ? { background: "var(--red)", color: "#fff", borderColor: "var(--red)" } : {}}>
+                    💳 {t.nombre}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {msg && <div className="text-xs mb-2" style={{ color: "var(--red)" }}>{msg}</div>}
+          <button onClick={savePago} className="w-full rounded-xl py-3 font-bold text-sm"
+            style={{ background: "var(--green)", color: "#fff" }}>
+            {editing === "nuevo" ? "Agregar pago" : "Guardar cambios"}
+          </button>
         </div>
       </div>
     );
@@ -1031,58 +1342,108 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
 }
 
 /* ---------- Tab Analisis (F5) ---------- */
-function TabAnalisis({ gastos, sobres, presupSemanal }) {
+function TabAnalisis({ gastos, sobres, presupSemanal, onNavToWeek, inicioSobres }) {
   const [excluir, setExcluir] = useState(false);
-  const [ventana, setVentana] = useState(4);
+  const [periodo, setPeriodo] = useState("semana");
   const [modoDia, setModoDia] = useState("monto");
   const [vistaTemp, setVistaTemp] = useState("semana");
 
+  const hoy = new Date();
+  const wsActual = toStr(weekStartOf(hoy));
   const gf = excluir ? gastos.filter((g) => g.categoria !== "tarjetas" && g.categoria !== "renta") : gastos;
 
+  const numSem = periodo === "semana" ? 1 : periodo === "2sem" ? 2 : periodo === "4sem" ? 4 : null;
+  let gastosEnPeriodo;
+  if (numSem) {
+    const startWS = toStr(addDays(fromStr(wsActual), -(numSem - 1) * 7));
+    gastosEnPeriodo = gf.filter((g) => weekOf(g.fecha) >= startWS);
+  } else {
+    const inicioMes = `${hoy.getFullYear()}-${pad(hoy.getMonth() + 1)}-01`;
+    gastosEnPeriodo = gf.filter((g) => g.fecha >= inicioMes);
+  }
+  const totalPeriodo = gastosEnPeriodo.reduce((a, g) => a + Number(g.monto), 0);
+
   const porDiaRaw = [0, 1, 2, 3, 4, 5, 6].map((d) => {
-    const gs = gf.filter((g) => fromStr(g.fecha).getDay() === d);
+    const gs = gastosEnPeriodo.filter((g) => fromStr(g.fecha).getDay() === d);
     return { dia: DIAS[d], monto: gs.reduce((a, g) => a + Number(g.monto), 0), compras: gs.length };
   });
   const porDia = [porDiaRaw[6], ...porDiaRaw.slice(0, 6)];
 
-  const todasSemanas = [...new Set(gf.map((g) => weekOf(g.fecha)))].sort();
-  const semanasVentana = todasSemanas.slice(-ventana);
+  const porCat = CATEGORIAS.map((c) => {
+    const val = gastosEnPeriodo.filter((g) => g.categoria === c).reduce((a, g) => a + Number(g.monto), 0);
+    return { name: CAT_LABEL[c], value: val, pct: totalPeriodo > 0 ? Math.round((val / totalPeriodo) * 100) : 0, color: CAT_COLOR[c] };
+  }).filter((x) => x.value > 0);
 
-  const porSemana = semanasVentana.map((ws) => {
-    const d = fromStr(ws);
-    return { label: `${d.getDate()} ${MESES[d.getMonth()]}`, monto: gf.filter((g) => weekOf(g.fecha) === ws).reduce((a, g) => a + Number(g.monto), 0) };
+  const todasSemanas = [...new Set(gf.map((g) => weekOf(g.fecha)))].sort();
+  const moneyShort = (n) => n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : n > 0 ? `$${Math.round(n)}` : "";
+
+  const semanasTemporal = todasSemanas.slice(-8).map((ws) => {
+    const diff = Math.round((fromStr(wsActual).getTime() - fromStr(ws).getTime()) / (7 * 86400000));
+    const d0 = fromStr(ws), d1 = addDays(d0, 6);
+    return {
+      ws, label: diff === 0 ? "Esta" : `Hace ${diff}`,
+      rango: `Sab ${d0.getDate()} ${MESES[d0.getMonth()]} – Vie ${d1.getDate()} ${MESES[d1.getMonth()]}`,
+      monto: gf.filter((g) => weekOf(g.fecha) === ws).reduce((sum, g) => sum + Number(g.monto), 0),
+      offset: -diff,
+    };
   });
 
   const mesesUnicos = [...new Set(gf.map((g) => g.fecha.substring(0, 7)))].sort();
-  const porMes = mesesUnicos.map((m) => {
+  const mesesTemporal = mesesUnicos.slice(-6).map((m) => {
     const [y, mm] = m.split("-").map(Number);
-    return { label: `${MESES[mm - 1]} ${y}`, monto: gf.filter((g) => g.fecha.startsWith(m)).reduce((a, g) => a + Number(g.monto), 0) };
+    const diffM = (hoy.getFullYear() - y) * 12 + (hoy.getMonth() + 1 - mm);
+    const finMes = new Date(y, mm, 0);
+    return {
+      label: diffM === 0 ? "Este" : `Hace ${diffM}`,
+      rango: `1–${finMes.getDate()} ${MESES[mm - 1]} ${y}`,
+      monto: gf.filter((g) => g.fecha.startsWith(m)).reduce((sum, g) => sum + Number(g.monto), 0),
+    };
   });
 
-  const porCat = CATEGORIAS.map((c) => ({
-    name: CAT_LABEL[c], value: gf.filter((g) => g.categoria === c).reduce((a, g) => a + Number(g.monto), 0), color: CAT_COLOR[c],
-  })).filter((x) => x.value > 0);
-
-  const gastosVentana = gf.filter((g) => semanasVentana.includes(weekOf(g.fecha)));
-  const totalVentana = gastosVentana.reduce((a, g) => a + Number(g.monto), 0);
-  const pctCat = CATEGORIAS.map((c) => {
-    const val = gastosVentana.filter((g) => g.categoria === c).reduce((a, g) => a + Number(g.monto), 0);
-    return { name: CAT_LABEL[c], value: val, pct: totalVentana > 0 ? Math.round((val / totalVentana) * 100) : 0, color: CAT_COLOR[c] };
-  }).filter((x) => x.value > 0).sort((a, b) => b.value - a.value);
-
-  const tendencia = todasSemanas.map((ws) => {
-    const d = fromStr(ws);
-    return { label: `${d.getDate()}/${d.getMonth() + 1}`, gasto: gf.filter((g) => weekOf(g.fecha) === ws).reduce((a, g) => a + Number(g.monto), 0) };
+  const wsInicio = inicioSobres ? toStr(weekStartOf(fromStr(inicioSobres))) : wsActual;
+  const tendencia = todasSemanas.filter((ws) => ws >= wsInicio).slice(-8).map((ws) => {
+    const diff = Math.round((fromStr(wsActual).getTime() - fromStr(ws).getTime()) / (7 * 86400000));
+    return {
+      label: diff === 0 ? "Esta" : `Hace ${diff}`,
+      gasto: gf.filter((g) => weekOf(g.fecha) === ws).reduce((sum, g) => sum + Number(g.monto), 0),
+    };
   });
 
   const ttStyle = { contentStyle: { background: "var(--card)", border: "1px solid var(--line)", borderRadius: 12, fontSize: 12 }, labelStyle: { color: "var(--ink)", fontWeight: 600 } };
 
+  const TempTooltip = ({ active, payload }) => {
+    if (!active || !payload?.[0]) return null;
+    const d = payload[0].payload;
+    return (
+      <div className="rounded-lg px-3 py-2" style={{ background: "var(--card)", border: "1px solid var(--line)", fontSize: 12 }}>
+        <div className="font-semibold" style={{ color: "var(--ink)" }}>{d.rango}</div>
+        <div className="num font-bold" style={{ color: "var(--green)" }}>{money(d.monto)}</div>
+      </div>
+    );
+  };
+
   return (
     <div>
-      <h2 className="text-base font-bold mb-1" style={{ color: "var(--ink)" }}>Analisis por categoria</h2>
-      <label className="flex items-center gap-2 mb-4 text-sm cursor-pointer select-none" style={{ color: "var(--ink-soft)" }}>
-        <input type="checkbox" checked={excluir} onChange={() => setExcluir(!excluir)} className="rounded" />Excluir tarjetas y renta
-      </label>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>Analisis</h2>
+        <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none" style={{ color: "var(--ink-soft)" }}>
+          <input type="checkbox" checked={excluir} onChange={() => setExcluir(!excluir)} className="rounded" />Sin tarjetas/renta
+        </label>
+      </div>
+
+      <div className="flex gap-1.5 mb-4">
+        {[["semana", "Semana"], ["2sem", "2 sem"], ["4sem", "4 sem"], ["mes", "Mes cal."]].map(([v, l]) => (
+          <button key={v} className="flex-1 text-xs font-semibold py-2 rounded-xl"
+            style={periodo === v ? { background: "var(--ink)", color: "#fff" } : { background: "var(--card)", color: "var(--ink)", border: "1px solid var(--line)" }}
+            onClick={() => setPeriodo(v)}>{l}</button>
+        ))}
+      </div>
+
+      <div className="rounded-xl p-3 mb-3 text-center" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+        <div className="text-xs" style={{ color: "var(--ink-soft)" }}>Total {periodo === "semana" ? "esta semana" : periodo === "2sem" ? "ultimas 2 semanas" : periodo === "4sem" ? "ultimas 4 semanas" : "este mes calendario"}</div>
+        <div className="num text-2xl font-bold mt-0.5" style={{ color: "var(--ink)" }}>{money(totalPeriodo)}</div>
+        <div className="text-xs" style={{ color: "var(--ink-soft)" }}>{gastosEnPeriodo.length} gasto{gastosEnPeriodo.length === 1 ? "" : "s"}</div>
+      </div>
 
       <div className="rounded-xl p-3 mb-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
         <div className="flex items-center justify-between mb-2">
@@ -1091,92 +1452,130 @@ function TabAnalisis({ gastos, sobres, presupSemanal }) {
             onClick={() => setModoDia(modoDia === "monto" ? "compras" : "monto")}>{modoDia === "monto" ? "$" : "#"}</button>
         </div>
         <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={porDia}><XAxis dataKey="dia" tick={{ fontSize: 11, fill: "#5A6B85" }} axisLine={false} tickLine={false} /><YAxis hide />
-            <Tooltip {...ttStyle} formatter={(v) => modoDia === "monto" ? money(v) : `${v} compras`} /><Bar dataKey={modoDia} fill="#22324A" radius={[4, 4, 0, 0]} /></BarChart>
+          <BarChart data={porDia}>
+            <XAxis dataKey="dia" tick={{ fontSize: 11, fill: "var(--ink-soft)" }} axisLine={false} tickLine={false} />
+            <YAxis hide />
+            <Tooltip {...ttStyle} formatter={(v) => modoDia === "monto" ? money(v) : `${v} compras`} />
+            <Bar dataKey={modoDia} fill="var(--ink)" radius={[4, 4, 0, 0]} />
+          </BarChart>
         </ResponsiveContainer>
       </div>
 
       <div className="rounded-xl p-3 mb-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
         <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--ink-soft)" }}>Por categoria</h3>
-        <div className="flex items-center">
-          <ResponsiveContainer width="50%" height={160}>
-            <PieChart><Pie data={porCat} dataKey="value" cx="50%" cy="50%" innerRadius={35} outerRadius={65} paddingAngle={2}>
-              {porCat.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip {...ttStyle} formatter={(v) => money(v)} /></PieChart>
-          </ResponsiveContainer>
-          <div className="flex-1 pl-2">
-            {porCat.map((c) => (
-              <div key={c.name} className="flex items-center justify-between text-xs py-0.5">
-                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full" style={{ background: c.color }} /><span style={{ color: "#5A6B85" }}>{c.name}</span></span>
-                <span className="num font-semibold" style={{ color: "#22324A" }}>{money(c.value)}</span>
+        {porCat.length > 0 ? (
+          <>
+            <div className="flex items-center">
+              <ResponsiveContainer width="50%" height={160}>
+                <PieChart>
+                  <Pie data={porCat} dataKey="value" cx="50%" cy="50%" innerRadius={35} outerRadius={65} paddingAngle={2}>
+                    {porCat.map((e, i) => <Cell key={i} fill={e.color} />)}
+                  </Pie>
+                  <Tooltip {...ttStyle} formatter={(v) => money(v)} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex-1 pl-2">
+                {porCat.map((c) => (
+                  <div key={c.name} className="flex items-center justify-between text-xs py-0.5">
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block w-2 h-2 rounded-full" style={{ background: c.color }} />
+                      <span style={{ color: "var(--ink-soft)" }}>{c.name}</span>
+                    </span>
+                    <span className="num font-semibold" style={{ color: "var(--ink)" }}>{c.pct}% · {money(c.value)}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+            <div className="text-xs mt-2 text-right num font-semibold" style={{ color: "var(--ink-soft)" }}>Total: {money(totalPeriodo)}</div>
+          </>
+        ) : (
+          <div className="text-sm text-center py-4" style={{ color: "var(--ink-soft)" }}>Sin gastos en este periodo</div>
+        )}
       </div>
 
       <div className="rounded-xl p-3 mb-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--ink-soft)" }}>Distribucion ({ventana} sem)</h3>
-          <div className="flex gap-1">
-            {[2, 3, 4].map((n) => (
-              <button key={n} className="text-[10px] font-semibold px-2 py-1 rounded-full"
-                style={ventana === n ? { background: "#22324A", color: "#fff" } : { background: "var(--line)", color: "#22324A" }} onClick={() => setVentana(n)}>{n}s</button>
-            ))}
-          </div>
-        </div>
-        {pctCat.map((c) => (
-          <div key={c.name} className="mb-1.5">
-            <div className="flex items-center justify-between text-xs mb-0.5"><span style={{ color: "#22324A" }}>{c.name}</span><span className="num font-semibold" style={{ color: "#5A6B85" }}>{c.pct}% · {money(c.value)}</span></div>
-            <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--line)" }}><div className="h-full rounded-full" style={{ width: `${c.pct}%`, background: c.color, transition: "width .3s" }} /></div>
-          </div>
-        ))}
-        {totalVentana > 0 && <div className="text-xs mt-2 text-right num font-semibold" style={{ color: "#5A6B85" }}>Total: {money(totalVentana)}</div>}
-      </div>
-
-      <div className="rounded-xl p-3 mb-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--ink-soft)" }}>Gasto temporal</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--ink-soft)" }}>Gasto por periodo</h3>
           <div className="flex gap-1">
             {[["semana", "Sem"], ["mes", "Mes"]].map(([v, l]) => (
               <button key={v} className="text-[10px] font-semibold px-2 py-1 rounded-full"
-                style={vistaTemp === v ? { background: "#22324A", color: "#fff" } : { background: "var(--line)", color: "#22324A" }} onClick={() => setVistaTemp(v)}>{l}</button>
+                style={vistaTemp === v ? { background: "var(--ink)", color: "#fff" } : { background: "var(--line)", color: "var(--ink)" }}
+                onClick={() => setVistaTemp(v)}>{l}</button>
             ))}
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={vistaTemp === "semana" ? porSemana : porMes}>
-            <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#5A6B85" }} axisLine={false} tickLine={false} /><YAxis hide />
-            <Tooltip {...ttStyle} formatter={(v) => money(v)} /><Bar dataKey="monto" fill="#0B7A4B" radius={[4, 4, 0, 0]} /></BarChart>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={vistaTemp === "semana" ? semanasTemporal : mesesTemporal}>
+            <XAxis dataKey="label" tick={{ fontSize: 9, fill: "var(--ink-soft)" }} axisLine={false} tickLine={false} />
+            <YAxis hide />
+            <Tooltip content={<TempTooltip />} />
+            <Bar dataKey="monto" fill="var(--green)" radius={[4, 4, 0, 0]}
+              cursor={vistaTemp === "semana" ? "pointer" : "default"}
+              onClick={vistaTemp === "semana" ? (data) => { const item = data?.payload || data; if (item?.offset !== undefined && onNavToWeek) onNavToWeek(item.offset); } : undefined}>
+              <LabelList dataKey="monto" position="top" fontSize={9} fill="var(--ink-soft)" formatter={moneyShort} />
+            </Bar>
+          </BarChart>
         </ResponsiveContainer>
+        <div className="text-[10px] text-center mt-1" style={{ color: "var(--ink-soft)" }}>
+          {vistaTemp === "semana" ? "semanas atras · toca para ver detalle" : "meses atras"}
+        </div>
       </div>
 
       <div className="rounded-xl p-3 mb-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
         <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--ink-soft)" }}>Tendencia vs presupuesto</h3>
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={tendencia}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E3DECF" />
-            <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#5A6B85" }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: "#5A6B85" }} axisLine={false} tickLine={false} width={45} tickFormatter={(v) => `$${Math.round(v / 1000)}k`} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
+            <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--ink-soft)" }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: "var(--ink-soft)" }} axisLine={false} tickLine={false} width={45} tickFormatter={(v) => `$${Math.round(v / 1000)}k`} />
             <Tooltip {...ttStyle} formatter={(v, name) => [money(v), name === "gasto" ? "Gasto" : "Meta"]} />
-            <ReferenceLine y={presupSemanal} stroke="#0B7A4B" strokeDasharray="5 5" label={{ value: `Meta ${money(presupSemanal)}`, position: "insideTopRight", fontSize: 9, fill: "#0B7A4B" }} />
-            <Line type="monotone" dataKey="gasto" stroke="#22324A" strokeWidth={2} dot={{ r: 3, fill: "#22324A" }} />
+            <ReferenceLine y={presupSemanal} stroke="var(--green)" strokeDasharray="5 5" label={{ value: `Meta ${money(presupSemanal)}`, position: "insideTopRight", fontSize: 9, fill: "var(--green)" }} />
+            <Line type="monotone" dataKey="gasto" stroke="var(--ink)" strokeWidth={2} dot={{ r: 3, fill: "var(--ink)" }} />
           </LineChart>
         </ResponsiveContainer>
+        <div className="text-[10px] text-center mt-1" style={{ color: "var(--ink-soft)" }}>semanas atras</div>
       </div>
     </div>
   );
 }
 
 /* ---------- Selector de tema (F6) ---------- */
-function SettingsPanel({ tema, onChangeTema, onClose }) {
+function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose }) {
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX = 800;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          const scale = MAX / Math.max(w, h);
+          w = Math.round(w * scale);
+          h = Math.round(h * scale);
+        }
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        onChangeFondo(canvas.toDataURL("image/jpeg", 0.7));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="fixed inset-0 z-30 flex items-end justify-center" style={{ background: "rgba(34,50,74,.45)" }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-t-2xl p-4 pb-6" style={{ background: "var(--card)" }} onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-t-2xl p-4 pb-6 overflow-y-auto" style={{ background: "var(--card)", maxHeight: "80vh" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>Tema visual</h2>
-          <button className="text-sm px-2 py-1" style={{ color: "var(--ink-soft)" }} onClick={onClose}>Cerrar</button>
+          <h2 className="text-base font-extrabold" style={{ color: "var(--ink)" }}>Apariencia</h2>
+          <button className="text-sm px-2 py-1 font-semibold" style={{ color: "var(--ink-soft)" }} onClick={onClose}>Cerrar</button>
         </div>
-        <div className="grid grid-cols-5 gap-2">
+
+        <p className="text-xs font-bold mb-2" style={{ color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Tema</p>
+        <div className="grid grid-cols-5 gap-2 mb-5">
           {Object.entries(TEMAS).map(([key, t]) => (
             <button key={key} onClick={() => onChangeTema(key)}
               className="rounded-xl p-1.5 text-center" style={{ border: tema === key ? `2px solid ${t.ink}` : "2px solid transparent", background: "var(--paper)" }}>
@@ -1188,9 +1587,30 @@ function SettingsPanel({ tema, onChangeTema, onClose }) {
                 </div>
                 <div style={{ background: t.card, height: 12 }} />
               </div>
-              <div className="text-[10px] font-semibold" style={{ color: tema === key ? "var(--ink)" : "var(--ink-soft)" }}>{t.label}</div>
+              <div className="text-[10px] font-bold" style={{ color: tema === key ? "var(--ink)" : "var(--ink-soft)" }}>{t.label}</div>
             </button>
           ))}
+        </div>
+
+        <p className="text-xs font-bold mb-2" style={{ color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Fondo de pantalla</p>
+        <div className="flex gap-3 items-center">
+          {fondoCustom ? (
+            <div className="relative rounded-xl overflow-hidden" style={{ width: 64, height: 64, border: "2px solid var(--green)" }}>
+              <img src={fondoCustom} alt="fondo" className="w-full h-full object-cover" />
+              <button onClick={() => onChangeFondo("")} className="absolute top-0 right-0 rounded-bl-lg p-0.5" style={{ background: "var(--red)", color: "#fff" }}>
+                <X size={12} />
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-xl flex items-center justify-center" style={{ width: 64, height: 64, border: "2px dashed var(--line)", background: "var(--paper)" }}>
+              <ImageIcon size={20} style={{ color: "var(--ink-soft)" }} />
+            </div>
+          )}
+          <label className="chip cursor-pointer flex items-center gap-1.5" style={{ background: "var(--card)" }}>
+            <ImageIcon size={14} />
+            {fondoCustom ? "Cambiar" : "Elegir de galeria"}
+            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+          </label>
         </div>
       </div>
     </div>
@@ -1211,6 +1631,7 @@ function AppMain() {
   const [msi, setMsi] = useState([]);
   const [tarjetas, setTarjetas] = useState([]);
   const [presupSemanal, setPresupSemanal] = useState(3000);
+  const [inicioSobres, setInicioSobres] = useState(toStr(new Date()));
   const [tema, setTemaState] = useState(perfil?.tema || "claro");
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("semana");
@@ -1218,6 +1639,7 @@ function AppMain() {
   const [err, setErr] = useState("");
   const [showPagoForm, setShowPagoForm] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [fondoCustom, setFondoCustom] = useState(() => localStorage.getItem("sobres_fondo") || "");
 
   const cargarDatos = useCallback(async () => {
     if (!cuentaId) return;
@@ -1228,12 +1650,15 @@ function AppMain() {
       supabase.from("pagos_recurrentes").select("*").eq("cuenta_id", cuentaId).order("nombre"),
       supabase.from("compras_msi").select("*").eq("cuenta_id", cuentaId).order("fecha_compra", { ascending: false }),
       supabase.from("tarjetas").select("*").eq("cuenta_id", cuentaId).order("nombre"),
-      supabase.from("cuentas").select("presupuesto_semanal").eq("id", cuentaId).single(),
+      supabase.from("cuentas").select("presupuesto_semanal, inicio_sobres").eq("id", cuentaId).single(),
     ]);
     if (sobresRes.error || gastosRes.error || cierresRes.error) { setErr("Error cargando datos."); setLoading(false); return; }
     setSobres(sobresRes.data || []); setGastos(gastosRes.data || []); setCierres(cierresRes.data || []);
     setPagos(pagosRes.data || []); setMsi(msiRes.data || []); setTarjetas(tarjetasRes.data || []);
-    if (cuentaRes.data) setPresupSemanal(Number(cuentaRes.data.presupuesto_semanal) || 3000);
+    if (cuentaRes.data) {
+      setPresupSemanal(Number(cuentaRes.data.presupuesto_semanal) || 3000);
+      if (cuentaRes.data.inicio_sobres) setInicioSobres(cuentaRes.data.inicio_sobres);
+    }
     setLoading(false);
 
     const result = await autoClose(sobresRes.data || [], gastosRes.data || [], cierresRes.data || [], cuentaId);
@@ -1265,7 +1690,11 @@ function AppMain() {
   }, [cuentaId]);
 
   const addGasto = async (gasto) => { const { error } = await supabase.from("gastos").insert({ ...gasto, cuenta_id: cuentaId, usuario_id: perfil.user_id }); if (error) throw error; };
-  const deleteGasto = async (id) => { const { error } = await supabase.from("gastos").delete().eq("id", id); if (error) setErr("Error al borrar gasto."); };
+  const deleteGasto = async (id) => {
+    const { error } = await supabase.from("gastos").delete().eq("id", id);
+    if (error) setErr("Error al borrar gasto.");
+    else setGastos((prev) => prev.filter((g) => g.id !== id));
+  };
   const editGasto = async (id, cambios) => {
     const { error } = await supabase.from("gastos").update(cambios).eq("id", id);
     if (error) throw error;
@@ -1301,11 +1730,20 @@ function AppMain() {
   };
   const deleteTarjeta = async (id) => { const { error } = await supabase.from("tarjetas").update({ activo: false }).eq("id", id); if (error) throw error; setTarjetas((prev) => prev.map((t) => t.id === id ? { ...t, activo: false } : t)); };
 
+  const configSaldos = async (updates) => {
+    for (const { id, saldo_acumulado } of updates) {
+      const { error } = await supabase.from("sobres").update({ saldo_acumulado }).eq("id", id);
+      if (error) throw error;
+    }
+    const { data } = await supabase.from("sobres").select("*").eq("cuenta_id", cuentaId).eq("activo", true).order("orden");
+    if (data) setSobres(data);
+  };
+
+  const navToWeek = (weekOffset) => { setOffset(weekOffset); setTab("semana"); };
+
   const pagarRecurrente = (pago) => { setShowPagoForm({ monto: String(pago.monto_estimado), sobre_id: pago.destino_sobre_id || "", fuera: !pago.destino_sobre_id, medio_pago: pago.medio_pago || "debito", categoria: pago.categoria, nota: pago.nombre, _pagoId: pago.id }); };
   const confirmarPago = async (gasto) => {
     await addGasto(gasto);
-    const pagoId = showPagoForm?._pagoId;
-    if (pagoId) { const hoy = toStr(new Date()); await supabase.from("pagos_recurrentes").update({ ultimo_pago: hoy }).eq("id", pagoId); setPagos((prev) => prev.map((p) => (p.id === pagoId ? { ...p, ultimo_pago: hoy } : p))); }
     setShowPagoForm(null);
   };
   const posponerPago = async (id) => { const sig = toStr(addDays(new Date(), 7)); await supabase.from("pagos_recurrentes").update({ pospuesto_hasta: sig }).eq("id", id); setPagos((prev) => prev.map((p) => (p.id === id ? { ...p, pospuesto_hasta: sig } : p))); };
@@ -1325,14 +1763,20 @@ function AppMain() {
     await supabase.from("perfiles").update({ tema: t }).eq("user_id", perfil.user_id);
   };
 
+  const cambiarFondo = (dataUrl) => {
+    setFondoCustom(dataUrl);
+    if (dataUrl) localStorage.setItem("sobres_fondo", dataUrl);
+    else localStorage.removeItem("sobres_fondo");
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: "#F6F4ED" }}><div className="text-sm" style={{ color: "#5A6B85" }}>Abriendo tu libreta...</div></div>;
 
   const TABS = [
-    { id: "semana", label: "Semana", icon: "📓" },
-    { id: "sobres", label: "Sobres", icon: "✉️" },
-    { id: "pagos", label: "Pagos", icon: "💳" },
-    { id: "analisis", label: "Analisis", icon: "📊" },
-    { id: "ahorro", label: "Ahorro", icon: "🐷" },
+    { id: "semana", label: "Semana", Icon: Notebook },
+    { id: "libreta", label: "Libreta", Icon: BookOpen },
+    { id: "sobres", label: "Sobres", Icon: Mail },
+    { id: "pagos", label: "Pagos", Icon: CreditCard },
+    { id: "analisis", label: "Analisis", Icon: BarChart3 },
   ];
 
   const temaObj = TEMAS[tema] || TEMAS.claro;
@@ -1340,53 +1784,59 @@ function AppMain() {
   const viewedWS = toStr(addDays(weekStartOf(hoy), offset * 7));
 
   return (
-    <div className="app-root min-h-screen" style={{
+    <div className={`app-root min-h-screen${fondoCustom ? " has-bg" : ""}`} style={{
       "--paper": temaObj.paper, "--line": temaObj.line, "--card": temaObj.card,
       "--ink": temaObj.ink, "--ink-soft": temaObj.inkSoft, "--green": temaObj.green,
       "--amber": temaObj.amber, "--red": temaObj.red, "--flap": temaObj.flap,
-      background: temaObj.bg,
+      background: fondoCustom ? `url(${fondoCustom}) center/cover fixed` : temaObj.bg,
     }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
-        .app-root { font-family: 'Sora', system-ui, sans-serif; color: var(--ink); }
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap');
+        .app-root { font-family: 'Nunito', system-ui, sans-serif; color: var(--ink); letter-spacing: -0.01em; }
         .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
-        .sobre-card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+        .sobre-card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+        .has-bg .sobre-card, .has-bg .chip { backdrop-filter: blur(12px); background: color-mix(in srgb, var(--card) 85%, transparent); }
         .sobre-flap { position: absolute; top: 0; left: 0; right: 0; height: 13px; background: var(--flap); clip-path: polygon(0 0, 100% 0, 50% 100%); }
-        .chip { font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 9999px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
-        .nav-arrow { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-size: 18px; font-weight: 700; }
+        .chip { font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 9999px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); transition: all .15s; }
+        .nav-arrow { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); display: flex; align-items: center; justify-content: center; }
         input::placeholder { color: #9AA6B8; }
+        .has-bg .content-glass { background: color-mix(in srgb, var(--paper) 80%, transparent); backdrop-filter: blur(16px) saturate(1.3); border-radius: 20px; padding: 16px; margin: -16px; margin-bottom: 0; }
         @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
       `}</style>
 
       <div className="max-w-md mx-auto px-4 pt-5 pb-28">
         <header className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-lg font-bold" style={{ color: "var(--ink)" }}>Sobres semanales</h1>
+            <h1 className="text-lg font-extrabold" style={{ color: "var(--ink)" }}>Sobres semanales</h1>
             <p className="text-xs" style={{ color: "var(--ink-soft)" }}>Hola, {perfil?.nombre}</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setShowSettings(true)} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ color: "var(--ink-soft)", border: "1px solid var(--line)" }}>⚙️</button>
-            <button onClick={logout} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ color: "var(--ink-soft)", border: "1px solid var(--line)" }}>Salir</button>
+            <button onClick={() => setShowSettings(true)} className="flex items-center justify-center w-8 h-8 rounded-lg" style={{ color: "var(--ink-soft)", border: "1px solid var(--line)", background: "var(--card)" }}>
+              <Settings size={16} />
+            </button>
+            <button onClick={logout} className="flex items-center justify-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ color: "var(--ink-soft)", border: "1px solid var(--line)", background: "var(--card)" }}>
+              <LogOut size={13} /> Salir
+            </button>
           </div>
         </header>
 
         {err && <div className="text-xs rounded-xl px-3 py-2 mb-3" style={{ background: "#FBEAE5", color: "var(--red)" }}>{err}</div>}
 
         {tab === "semana" && <TabSemana sobres={sobres} gastos={gastos} cierres={cierres} pagos={pagos} tarjetas={tarjetas} msi={msi} presupSemanal={presupSemanal} offset={offset} setOffset={setOffset} onAdd={addGasto} onDelete={deleteGasto} onEditGasto={editGasto} onPagar={pagarRecurrente} onPosponer={posponerPago} onPagarTarjeta={pagarTarjeta} />}
-        {tab === "sobres" && <TabSobres sobres={sobres} gastos={gastos} presupSemanal={presupSemanal} onSaveSobre={saveSobre} onDeleteSobre={deleteSobre} onSavePresup={savePresup} />}
+        {tab === "libreta" && <TabLibreta sobres={sobres} gastos={gastos} tarjetas={tarjetas} onEditGasto={editGasto} onDelete={deleteGasto} />}
+        {tab === "sobres" && <TabSobres sobres={sobres} gastos={gastos} cierres={cierres} presupSemanal={presupSemanal} onSaveSobre={saveSobre} onDeleteSobre={deleteSobre} onSavePresup={savePresup} onConfigSaldos={configSaldos} />}
         {tab === "pagos" && <TabPagos pagos={pagos} sobres={sobres} msi={msi} tarjetas={tarjetas} gastos={gastos} onSavePago={savePago} onDeletePago={deletePago} onPagar={pagarRecurrente} onSaveMSI={saveMSI} onDeleteMSI={deleteMSI} onSaveTarjeta={saveTarjeta} onDeleteTarjeta={deleteTarjeta} onPagarTarjeta={pagarTarjeta} />}
-        {tab === "analisis" && <TabAnalisis gastos={gastos} sobres={sobres} presupSemanal={presupSemanal} />}
-        {tab === "ahorro" && <TabAhorro sobres={sobres} cierres={cierres} />}
+        {tab === "analisis" && <TabAnalisis gastos={gastos} sobres={sobres} presupSemanal={presupSemanal} onNavToWeek={navToWeek} inicioSobres={inicioSobres} />}
       </div>
 
       {showPagoForm && <GastoForm sobres={sobres} tarjetas={tarjetas} viewedWS={viewedWS} isCurrent={true} onAdd={confirmarPago} onClose={() => setShowPagoForm(null)} prefill={showPagoForm} />}
-      {showSettings && <SettingsPanel tema={tema} onChangeTema={cambiarTema} onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsPanel tema={tema} onChangeTema={cambiarTema} fondoCustom={fondoCustom} onChangeFondo={cambiarFondo} onClose={() => setShowSettings(false)} />}
 
-      <nav className="fixed bottom-0 left-0 right-0 z-20" style={{ background: `${temaObj.card}EE`, borderTop: "1px solid var(--line)", backdropFilter: "blur(6px)" }}>
+      <nav className="fixed bottom-0 left-0 right-0 z-20" style={{ background: fondoCustom ? `${temaObj.card}CC` : `${temaObj.card}EE`, borderTop: "1px solid var(--line)", backdropFilter: fondoCustom ? "blur(16px) saturate(1.4)" : "blur(6px)" }}>
         <div className="max-w-md mx-auto flex">
           {TABS.map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)} className="flex-1 py-2.5 text-center" style={{ color: tab === t.id ? "var(--ink)" : "var(--ink-soft)" }}>
-              <div className="text-lg leading-none">{t.icon}</div>
+            <button key={t.id} onClick={() => setTab(t.id)} className="flex-1 py-2.5 flex flex-col items-center" style={{ color: tab === t.id ? "var(--ink)" : "var(--ink-soft)" }}>
+              <t.Icon size={20} strokeWidth={tab === t.id ? 2.2 : 1.5} />
               <div className="text-[10px] font-semibold mt-0.5">{t.label}</div>
             </button>
           ))}
