@@ -96,20 +96,31 @@ const money = (n) =>
 function getPagosProximos(pagos, gastos) {
   const hoy = new Date();
   const diaHoy = hoy.getDate();
+  const diaSemHoy = hoy.getDay();
   const mesHoy = hoy.getMonth();
   const anioHoy = hoy.getFullYear();
   const wsHoy = toStr(weekStartOf(hoy));
+  const cercaDeDia = (dia) => { const d = dia - diaHoy; return d >= -2 && d <= 3; };
   return pagos.filter((p) => {
     if (!p.activo) return false;
     if (p.categoria === "tarjetas") return false;
     if (p.pospuesto_hasta && p.pospuesto_hasta >= toStr(hoy)) return false;
     if (p.frecuencia === "semanal") {
+      if (p.dia_pago != null && diaSemHoy !== p.dia_pago) return false;
       return !gastos.some((g) => g.nota === p.nombre && weekOf(g.fecha) === wsHoy);
     }
+    if (p.frecuencia === "quincenal") {
+      const dia1 = p.dia_pago || 1;
+      const dia2 = p.dia_pago_2 || 15;
+      if (!cercaDeDia(dia1) && !cercaDeDia(dia2)) return false;
+      const pagosEsteMes = gastos.filter((g) => g.nota === p.nombre && fromStr(g.fecha).getMonth() === mesHoy && fromStr(g.fecha).getFullYear() === anioHoy);
+      const medio = Math.round((dia1 + dia2) / 2);
+      if (cercaDeDia(dia1) && !pagosEsteMes.some((g) => fromStr(g.fecha).getDate() <= medio)) return true;
+      if (cercaDeDia(dia2) && !pagosEsteMes.some((g) => fromStr(g.fecha).getDate() > medio)) return true;
+      return false;
+    }
     const dia = p.dia_pago || 1;
-    const diff = dia - diaHoy;
-    const enRango = diff >= -2 && diff <= 3;
-    if (!enRango) return false;
+    if (!cercaDeDia(dia)) return false;
     return !gastos.some((g) => g.nota === p.nombre && fromStr(g.fecha).getMonth() === mesHoy && fromStr(g.fecha).getFullYear() === anioHoy);
   });
 }
@@ -1000,7 +1011,7 @@ function TabAhorro({ sobres, cierres, gastos }) {
 /* ---------- Tab Pagos (F3 + F4 + Tarjetas) ---------- */
 function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePago, onPagar, onSaveMSI, onDeleteMSI, onSaveTarjeta, onDeleteTarjeta, onPagarTarjeta }) {
   const [editing, setEditing] = useState(null);
-  const [nombre, setNombre] = useState(""); const [monto, setMonto] = useState(""); const [diaPago, setDiaPago] = useState("");
+  const [nombre, setNombre] = useState(""); const [monto, setMonto] = useState(""); const [diaPago, setDiaPago] = useState(""); const [diaPago2, setDiaPago2] = useState("");
   const [frecuencia, setFrecuencia] = useState("mensual"); const [medio, setMedio] = useState("debito");
   const [pagoTarjetaId, setPagoTarjetaId] = useState("");
   const [sobreId, setSobreId] = useState(""); const [categoria, setCategoria] = useState("casa");
@@ -1032,11 +1043,11 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
   const montoReal = (p) => p.categoria === "tarjetas" && p.tarjeta_id ? msiDeTarjeta(p.tarjeta_id) : Number(p.monto_estimado);
   const totalMensual = pagosActivos.reduce((a, p) => a + montoReal(p) * (p.frecuencia === "semanal" ? 4 : p.frecuencia === "quincenal" ? 2 : 1), 0);
 
-  const startEditPago = (p) => { setEditing(p.id); setNombre(p.nombre); setMonto(String(p.monto_estimado)); setDiaPago(p.dia_pago != null ? String(p.dia_pago) : ""); setFrecuencia(p.frecuencia || "mensual"); setMedio(p.medio_pago || "debito"); setPagoTarjetaId(p.tarjeta_id || ""); setSobreId(p.destino_sobre_id || ""); setCategoria(p.categoria); setMsg(""); };
-  const startNewPago = () => { setEditing("nuevo"); setNombre(""); setMonto(""); setDiaPago(""); setFrecuencia("mensual"); setMedio("debito"); setPagoTarjetaId(""); setSobreId(""); setCategoria("casa"); setMsg(""); };
+  const startEditPago = (p) => { setEditing(p.id); setNombre(p.nombre); setMonto(String(p.monto_estimado)); setDiaPago(p.dia_pago != null ? String(p.dia_pago) : ""); setDiaPago2(p.dia_pago_2 != null ? String(p.dia_pago_2) : ""); setFrecuencia(p.frecuencia || "mensual"); setMedio(p.medio_pago || "debito"); setPagoTarjetaId(p.tarjeta_id || ""); setSobreId(p.destino_sobre_id || ""); setCategoria(p.categoria); setMsg(""); };
+  const startNewPago = () => { setEditing("nuevo"); setNombre(""); setMonto(""); setDiaPago(""); setDiaPago2(""); setFrecuencia("mensual"); setMedio("debito"); setPagoTarjetaId(""); setSobreId(""); setCategoria("casa"); setMsg(""); };
   const savePago = async () => {
     if (!nombre.trim()) return setMsg("Ponle nombre."); const m = parseFloat(monto); if (isNaN(m) || m <= 0) return setMsg("Monto invalido.");
-    try { await onSavePago({ id: editing === "nuevo" ? undefined : editing, nombre: nombre.trim(), monto_estimado: m, dia_pago: diaPago ? parseInt(diaPago) : null, frecuencia, medio_pago: medio, tarjeta_id: medio === "credito" && pagoTarjetaId ? pagoTarjetaId : null, destino_sobre_id: sobreId || null, categoria, activo: true }); setEditing(null); }
+    try { await onSavePago({ id: editing === "nuevo" ? undefined : editing, nombre: nombre.trim(), monto_estimado: m, dia_pago: diaPago !== "" ? parseInt(diaPago) : null, dia_pago_2: frecuencia === "quincenal" && diaPago2 ? parseInt(diaPago2) : null, frecuencia, medio_pago: medio, tarjeta_id: medio === "credito" && pagoTarjetaId ? pagoTarjetaId : null, destino_sobre_id: sobreId || null, categoria, activo: true }); setEditing(null); }
     catch (err) { setMsg(err.message || "Error al guardar."); }
   };
   const tryDeletePago = async (id) => { if (pendingDel !== id) { setPendingDel(id); return; } try { await onDeletePago(id); setPendingDel(null); } catch (err) { setMsg(err.message); } };
@@ -1128,7 +1139,12 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
               </div>
               <div className="text-xs num" style={{ color: "var(--ink-soft)" }}>
                 {money(montoReal(p))} · {FREQ_LABEL[p.frecuencia] || "Mensual"}
-                {(() => { const dia = p.categoria === "tarjetas" && p.tarjeta_id ? tarjetasActivas.find((t) => t.id === p.tarjeta_id)?.dia_pago : p.dia_pago; return dia ? ` · dia ${dia}` : ""; })()}
+                {(() => {
+                  if (p.categoria === "tarjetas" && p.tarjeta_id) { const dia = tarjetasActivas.find((t) => t.id === p.tarjeta_id)?.dia_pago; return dia ? ` · dia ${dia}` : ""; }
+                  if (p.frecuencia === "semanal") return p.dia_pago != null ? ` · ${DIAS[p.dia_pago]}` : "";
+                  if (p.frecuencia === "quincenal") return p.dia_pago ? ` · dias ${p.dia_pago}${p.dia_pago_2 ? ` y ${p.dia_pago_2}` : ""}` : "";
+                  return p.dia_pago ? ` · dia ${p.dia_pago}` : "";
+                })()}
                 {p.tarjeta_id ? ` · 💳 ${tarjetasActivas.find((t) => t.id === p.tarjeta_id)?.nombre || ""}` : ""}
                 {p.destino_sobre_id ? ` → ${sobres.find((s) => s.id === p.destino_sobre_id)?.nombre || ""}` : " → Fuera"}
               </div>
@@ -1238,7 +1254,34 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
             ))}
           </div>
 
-          {frecuencia !== "semanal" && (
+          {frecuencia === "semanal" && (
+            <>
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Que dia de la semana?</label>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {DIAS.map((d, i) => (
+                  <button key={i} onClick={() => setDiaPago(String(i))} className="chip"
+                    style={diaPago === String(i) ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          {frecuencia === "quincenal" && (
+            <>
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Dias del mes</label>
+              <div className="flex items-center gap-2 mb-3">
+                <input type="number" inputMode="numeric" placeholder="ej: 1" min="1" max="31" value={diaPago} onChange={(e) => setDiaPago(e.target.value)}
+                  className="w-20 num rounded-xl px-3 py-2 text-sm outline-none"
+                  style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+                <span className="text-sm font-semibold" style={{ color: "var(--ink-soft)" }}>y</span>
+                <input type="number" inputMode="numeric" placeholder="ej: 15" min="1" max="31" value={diaPago2} onChange={(e) => setDiaPago2(e.target.value)}
+                  className="w-20 num rounded-xl px-3 py-2 text-sm outline-none"
+                  style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+              </div>
+            </>
+          )}
+          {frecuencia === "mensual" && (
             <>
               <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Dia del mes</label>
               <input type="number" inputMode="numeric" placeholder="ej: 15" min="1" max="31" value={diaPago} onChange={(e) => setDiaPago(e.target.value)}
