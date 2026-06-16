@@ -150,14 +150,15 @@ function getTarjetaRecordatorios(tarjetas, pagosRec, gastos) {
 }
 
 /* ---------- helpers para MSI ---------- */
-function calcMSI(msi) {
+function calcMSI(msi, pagoEsteMes = false) {
   const hoy = new Date();
   const pp = fromStr(msi.mes_primer_pago);
   const total = Number(msi.monto_total);
   const meses = msi.num_meses;
   const mensual = total / meses;
-  const pagados = (hoy.getFullYear() - pp.getFullYear()) * 12 + (hoy.getMonth() - pp.getMonth());
-  if (pagados < 0) return { estatus: "pendiente", pagados: 0, meses, mensual, restante: total };
+  const mesesTranscurridos = (hoy.getFullYear() - pp.getFullYear()) * 12 + (hoy.getMonth() - pp.getMonth());
+  if (mesesTranscurridos < 0) return { estatus: "pendiente", pagados: 0, meses, mensual, restante: total };
+  const pagados = mesesTranscurridos + (pagoEsteMes ? 1 : 0);
   if (pagados >= meses) return { estatus: "liquidado", pagados: meses, meses, mensual, restante: 0 };
   return { estatus: "activo", pagados, meses, mensual, restante: mensual * (meses - pagados) };
 }
@@ -1017,8 +1018,19 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
 
   const gastables = sobres.filter((s) => !s.es_ahorro);
   const pagosActivos = pagos.filter((p) => p.activo);
-  const totalMensual = pagosActivos.reduce((a, p) => a + Number(p.monto_estimado) * (p.frecuencia === "semanal" ? 4 : p.frecuencia === "quincenal" ? 2 : 1), 0);
   const tarjetasActivas = (tarjetas || []).filter((t) => t.activo);
+  const msiActivos = msi.filter((m) => m.activo);
+  const cargaMSI = msiActivos.reduce((a, m) => { const s = calcMSI(m); return s.estatus === "activo" ? a + s.mensual : a; }, 0);
+  const msiDeTarjeta = (tarjetaId) => msiActivos.filter((m) => m.tarjeta_id === tarjetaId).reduce((a, m) => { const s = calcMSI(m); return s.estatus === "activo" ? a + s.mensual : a; }, 0);
+  const montoReal = (p) => p.categoria === "tarjetas" && p.tarjeta_id ? msiDeTarjeta(p.tarjeta_id) : Number(p.monto_estimado);
+  const totalMensual = pagosActivos.reduce((a, p) => a + montoReal(p) * (p.frecuencia === "semanal" ? 4 : p.frecuencia === "quincenal" ? 2 : 1), 0);
+  const tarjetaPagadaEsteMes = (tarjetaId) => {
+    const t = tarjetasActivas.find((x) => x.id === tarjetaId);
+    if (!t) return false;
+    const hoy = new Date();
+    const notaPago = `Pago ${t.nombre}`;
+    return gastos.some((g) => g.nota === notaPago && fromStr(g.fecha).getMonth() === hoy.getMonth() && fromStr(g.fecha).getFullYear() === hoy.getFullYear());
+  };
 
   const startEditPago = (p) => { setEditing(p.id); setNombre(p.nombre); setMonto(String(p.monto_estimado)); setDiaPago(p.dia_pago != null ? String(p.dia_pago) : ""); setFrecuencia(p.frecuencia || "mensual"); setMedio(p.medio_pago || "debito"); setPagoTarjetaId(p.tarjeta_id || ""); setSobreId(p.destino_sobre_id || ""); setCategoria(p.categoria); setMsg(""); };
   const startNewPago = () => { setEditing("nuevo"); setNombre(""); setMonto(""); setDiaPago(""); setFrecuencia("mensual"); setMedio("debito"); setPagoTarjetaId(""); setSobreId(""); setCategoria("casa"); setMsg(""); };
@@ -1054,11 +1066,6 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
     try { await onSaveMSI({ id: editMSI === "nuevo" ? undefined : editMSI, concepto: msiConcepto.trim(), monto_total: m, tarjeta: tarjeta?.nombre || "", tarjeta_id: msiTarjetaId, num_meses: meses, fecha_compra: msiFecha, mes_primer_pago: msiPrimer, activo: true }); setEditMSI(null); }
     catch (err) { setMsiMsg(err.message || "Error al guardar."); }
   };
-
-  const msiActivos = msi.filter((m) => m.activo);
-  const cargaMSI = msiActivos.reduce((a, m) => { const s = calcMSI(m); return s.estatus === "activo" ? a + s.mensual : a; }, 0);
-  const msiDeTarjeta = (tarjetaId) => msiActivos.filter((m) => m.tarjeta_id === tarjetaId).reduce((a, m) => { const s = calcMSI(m); return s.estatus === "activo" ? a + s.mensual : a; }, 0);
-  const montoReal = (p) => p.categoria === "tarjetas" && p.tarjeta_id ? msiDeTarjeta(p.tarjeta_id) : Number(p.monto_estimado);
 
   return (
     <div>
@@ -1142,7 +1149,7 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
       <div className="text-xs mb-3" style={{ color: "var(--ink-soft)" }}>Carga mensual activa: <span className="num font-semibold">{money(cargaMSI)}</span></div>
 
       {msiActivos.map((m) => {
-        const st = calcMSI(m);
+        const st = calcMSI(m, tarjetaPagadaEsteMes(m.tarjeta_id));
         const tarjeta = tarjetasActivas.find((t) => t.id === m.tarjeta_id);
         if (editMSI === m.id) return <div key={m.id}>{msiForm()}</div>;
         return (
