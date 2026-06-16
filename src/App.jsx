@@ -124,14 +124,14 @@ function getCicloActual(diaCorte) {
   return { inicio: toStr(new Date(y, m, diaCorte + 1)), fin: toStr(new Date(y, m + 1, diaCorte)) };
 }
 
-function calcEstimadoTarjeta(tarjeta, gastos, msiList, pagosRec) {
+function calcEstimadoTarjeta(tarjeta, gastos, msiList, pagosRec, pagoEsteMes = false) {
   const msiMensual = msiList
     .filter((m) => m.tarjeta_id === tarjeta.id && m.activo)
     .reduce((a, m) => {
-      const st = calcMSI(m);
+      const st = calcMSI(m, pagoEsteMes);
       return st.estatus === "activo" ? a + st.mensual : a;
     }, 0);
-  const numMSI = msiList.filter((m) => m.tarjeta_id === tarjeta.id && m.activo && calcMSI(m).estatus === "activo").length;
+  const numMSI = msiList.filter((m) => m.tarjeta_id === tarjeta.id && m.activo && calcMSI(m, pagoEsteMes).estatus === "activo").length;
   return { msi: msiMensual, numMSI, total: msiMensual };
 }
 
@@ -1020,10 +1020,6 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
   const pagosActivos = pagos.filter((p) => p.activo);
   const tarjetasActivas = (tarjetas || []).filter((t) => t.activo);
   const msiActivos = msi.filter((m) => m.activo);
-  const cargaMSI = msiActivos.reduce((a, m) => { const s = calcMSI(m); return s.estatus === "activo" ? a + s.mensual : a; }, 0);
-  const msiDeTarjeta = (tarjetaId) => msiActivos.filter((m) => m.tarjeta_id === tarjetaId).reduce((a, m) => { const s = calcMSI(m); return s.estatus === "activo" ? a + s.mensual : a; }, 0);
-  const montoReal = (p) => p.categoria === "tarjetas" && p.tarjeta_id ? msiDeTarjeta(p.tarjeta_id) : Number(p.monto_estimado);
-  const totalMensual = pagosActivos.reduce((a, p) => a + montoReal(p) * (p.frecuencia === "semanal" ? 4 : p.frecuencia === "quincenal" ? 2 : 1), 0);
   const tarjetaPagadaEsteMes = (tarjetaId) => {
     const t = tarjetasActivas.find((x) => x.id === tarjetaId);
     if (!t) return false;
@@ -1031,6 +1027,10 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
     const notaPago = `Pago ${t.nombre}`;
     return gastos.some((g) => g.nota === notaPago && fromStr(g.fecha).getMonth() === hoy.getMonth() && fromStr(g.fecha).getFullYear() === hoy.getFullYear());
   };
+  const cargaMSI = msiActivos.reduce((a, m) => { const s = calcMSI(m, tarjetaPagadaEsteMes(m.tarjeta_id)); return s.estatus === "activo" ? a + s.mensual : a; }, 0);
+  const msiDeTarjeta = (tarjetaId) => { const pagado = tarjetaPagadaEsteMes(tarjetaId); return msiActivos.filter((m) => m.tarjeta_id === tarjetaId).reduce((a, m) => { const s = calcMSI(m, pagado); return s.estatus === "activo" ? a + s.mensual : a; }, 0); };
+  const montoReal = (p) => p.categoria === "tarjetas" && p.tarjeta_id ? msiDeTarjeta(p.tarjeta_id) : Number(p.monto_estimado);
+  const totalMensual = pagosActivos.reduce((a, p) => a + montoReal(p) * (p.frecuencia === "semanal" ? 4 : p.frecuencia === "quincenal" ? 2 : 1), 0);
 
   const startEditPago = (p) => { setEditing(p.id); setNombre(p.nombre); setMonto(String(p.monto_estimado)); setDiaPago(p.dia_pago != null ? String(p.dia_pago) : ""); setFrecuencia(p.frecuencia || "mensual"); setMedio(p.medio_pago || "debito"); setPagoTarjetaId(p.tarjeta_id || ""); setSobreId(p.destino_sobre_id || ""); setCategoria(p.categoria); setMsg(""); };
   const startNewPago = () => { setEditing("nuevo"); setNombre(""); setMonto(""); setDiaPago(""); setFrecuencia("mensual"); setMedio("debito"); setPagoTarjetaId(""); setSobreId(""); setCategoria("casa"); setMsg(""); };
@@ -1074,7 +1074,7 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
 
       {tarjetasActivas.map((t) => {
         if (editTarjeta === t.id) return <div key={t.id}>{tarjetaForm()}</div>;
-        const est = calcEstimadoTarjeta(t, gastos, msi, pagos);
+        const est = calcEstimadoTarjeta(t, gastos, msi, pagos, tarjetaPagadaEsteMes(t.id));
         return (
           <div key={t.id} className="rounded-xl px-3 py-3 mb-2" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
             <div className="flex items-center justify-between">
