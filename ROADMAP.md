@@ -83,10 +83,36 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[CC]** Temas: Claro, Oscuro, Coquette, Periodico, Mariposas (CSS variables + selector)
 - [x] **[CC]** Selector por usuario en ajustes (guardado en perfiles.tema)
 
-### F7 — Mejoras de usabilidad (2026-06-20)
+### F7 — Frecuencias semanal y quincenal en pagos recurrentes (2026-06-16)
+- [x] **[CC]** Pagos semanales: selector de dia de la semana (Lun, Mar, etc.)
+- [x] **[CC]** Pagos quincenales: dos dias del mes (ej: dia 1 y dia 15)
+- [x] **[CC]** Recordatorios ajustados a cada frecuencia
+
+### F8 — Mejoras de usabilidad (2026-06-20)
 - [x] **[CC]** Permitir registrar gastos en semanas pasadas (boton visible siempre, no solo semana actual)
 - [x] **[CC]** Permitir borrar gastos en semanas pasadas
 - [x] **[CC]** Mostrar sobre de Ahorro como card en la vista semanal (saldo acumulado + aportacion + gastado)
+
+---
+
+## Bugs corregidos
+
+### Presupuesto y sobres (2026-06-16)
+- [x] **[CC]** Presupuesto semanal solo descuenta gastos asignados a sobres, no los "fuera de sobres" (`01057d9`)
+
+### Tarjetas y MSI (2026-06-16)
+- [x] **[CC]** Tarjetas refactorizadas como entidad informativa: solo muestran MSI activos y dia de corte/pago (`88485da`, `9cdde45`)
+- [x] **[CC]** Pagos recurrentes de tarjetas usan monto MSI calculado en vez de monto fijo (`26fdf77`)
+- [x] **[CC]** Recordatorio de pago de tarjeta usa `dia_pago` de la tarjeta, no del pago recurrente (`ccf9af1`)
+- [x] **[CC]** Carga mensual en pestana Pagos usa montos reales (MSI calculado para tarjetas) (`ff3ce16`)
+- [x] **[CC]** MSI liquidados ya no suman en la carga de la tarjeta ni en pagos recurrentes (`d5f462c`)
+- [x] **[CC]** Al marcar "Ya pague" en tarjeta, los MSI avanzan un mes pagado (`ff3ce16`)
+
+### Pagos recurrentes (2026-06-16)
+- [x] **[CC]** Alertas de pagos recurrentes aparecen correctamente segun ventana de dias (`b0be4f5`)
+
+### Graficas (2026-06-16)
+- [x] **[CC]** Eje Y visible en grafica de gasto por dia de la semana (`db8fe5a`)
 
 ---
 

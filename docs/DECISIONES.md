@@ -94,6 +94,29 @@ va al Ahorro y reinicia) o `acumula` (saldo se arrastra).
 **Por que**: algunos gastos son semanales (tianguis, antojos) y otros mensuales (plataformas,
 servicios). Dos tipos de cierre permiten que el mismo sistema cubra ambos patrones.
 
+## 2026-06-16 — Tarjetas como entidad informativa, no como sobre
+
+**Decision**: las tarjetas de credito no son sobres ni tienen presupuesto propio. Son una
+entidad separada que muestra: MSI activos, dia de corte, dia de pago, y carga mensual
+comprometida. El pago de la tarjeta se registra desde pagos recurrentes con "Ya pague".
+
+**Alternativas consideradas**:
+- Tarjetas como sobres con presupuesto: confuso porque el monto varia mes a mes segun MSI.
+- Tarjetas con monto fijo en pagos recurrentes: no refleja la realidad cuando hay MSI que
+  se van liquidando.
+
+**Por que**: el monto a pagar de una tarjeta cambia cada mes segun los MSI activos. Calcular
+el monto dinamicamente (sumando MSI activos al momento del pago) es mas preciso que un monto
+fijo. Ademas, al marcar "Ya pague" los MSI avanzan un mes pagado automaticamente.
+
+## 2026-06-16 — Frecuencias semanal y quincenal en pagos recurrentes
+
+**Decision**: los pagos recurrentes soportan 3 frecuencias: semanal (con dia de la semana),
+quincenal (con 2 dias del mes), y mensual (con 1 dia del mes).
+
+**Por que**: algunos pagos como el tianguis o transporte son semanales, y otros como nomina
+o servicios caen dos veces al mes. Sin estas frecuencias, los recordatorios no aplican bien.
+
 ## 2026-06-20 — Gastos en semanas pasadas
 
 **Decision**: el boton "Registrar gasto" y el boton de borrar ahora estan disponibles en
