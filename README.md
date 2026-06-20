@@ -71,4 +71,5 @@ SobresSemanales.jsx      # prototipo original (referencia, no se usa en el build
 - `CLAUDE.md` — contexto del proyecto y reglas de negocio v2.1
 - `ROADMAP.md` — fases y backlog (F1-F6)
 - `docs/DECISIONES.md` — bitacora de decisiones y supuestos
+- `docs/PLAN_COMERCIAL.md` — analisis de mercado, competencia, proyecciones de ingreso y roadmap de comercializacion
 - `ESPECIFICACIONES_V2.1.md` — especificaciones completas del modelo v2.1
