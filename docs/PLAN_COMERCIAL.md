@@ -239,7 +239,7 @@ El eCPM sube a ~$3.50-$5 USD (2-3x sobre generico):
 |-----------|-------:|-------|
 | **Año 1 (< 50k usuarios)** | **~$650 MXN total** | $450 Google (unico) + $200 dominio (anual) |
 | **Año 2 (< 50k usuarios)** | **~$200 MXN total** | Solo renovacion de dominio |
-| **Cuando superes 50k usuarios** | **~$9,900 MXN/año adicional** | Supabase Pro + Vercel Pro |
+| **Cuando superes 50k usuarios** | **~$9,920 MXN/año** | Supabase Pro $450/mes + Vercel Pro $360/mes + dominio $200 |
 
 Los costos son extremadamente bajos porque Supabase y Vercel tienen planes gratuitos
 generosos que cubren hasta 50,000 usuarios. Hasta ese punto, el unico gasto real es
