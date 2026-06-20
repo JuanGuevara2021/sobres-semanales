@@ -93,3 +93,29 @@ va al Ahorro y reinicia) o `acumula` (saldo se arrastra).
 
 **Por que**: algunos gastos son semanales (tianguis, antojos) y otros mensuales (plataformas,
 servicios). Dos tipos de cierre permiten que el mismo sistema cubra ambos patrones.
+
+## 2026-06-20 — Gastos en semanas pasadas
+
+**Decision**: el boton "Registrar gasto" y el boton de borrar ahora estan disponibles en
+todas las semanas, no solo en la semana actual.
+
+**Alternativas consideradas**:
+- Mantener restriccion a semana actual: mas seguro pero impide corregir olvidos.
+- Permitir agregar pero no borrar en semanas pasadas: inconsistente.
+
+**Por que**: en la practica es comun olvidar registrar un gasto del viernes y querer agregarlo
+el sabado (ya en la semana siguiente). Bloquear la edicion de semanas pasadas obligaba a
+registrar gastos con fecha incorrecta o perderlos.
+
+## 2026-06-20 — Ahorro visible como sobre en vista semanal
+
+**Decision**: el sobre de Ahorro aparece como card en la vista de semana, debajo de los
+sobres normales, ocupando ancho completo con solapa verde.
+
+**Alternativas consideradas**:
+- Solo mostrarlo en la pestana Sobres: el usuario no ve su ahorro en el flujo principal.
+- Mostrarlo como un sobre mas en el grid de 2 columnas: se pierde entre los demas.
+
+**Por que**: Juan queria visibilidad del ahorro en su flujo diario (vista semanal) sin tener
+que cambiar de pestana. El ancho completo y la solapa verde lo distinguen de los sobres
+normales.

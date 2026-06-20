@@ -37,8 +37,8 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 
 ## Fase 3 — PWA en los celulares
 
-- [ ] **[CC]** Configurar la PWA: manifest, iconos, service worker (funciona aunque se vaya el internet un momento)
-- [ ] **[CC]** Crear repositorio Git, primer commit y subir a GitHub (te pedira confirmar)
+- [x] **[CC]** Configurar la PWA: manifest, iconos, service worker (funciona aunque se vaya el internet un momento)
+- [x] **[CC]** Crear repositorio Git, primer commit y subir a GitHub → https://github.com/JuanGuevara2021/sobres-semanales
 - [ ] **[JUAN]** En Vercel: Add New Project → importar el repo de GitHub → pegar las 2 variables de entorno (URL y anon key) → Deploy
 - [ ] **[JUAN]** Abrir la URL de Vercel en cada celular → menu del navegador → "Agregar a pantalla de inicio"
 - [ ] **[JUAN]** Usarla 2 semanas completas (el experimento que acordamos)
@@ -82,6 +82,11 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 ### F6 — Temas visuales
 - [x] **[CC]** Temas: Claro, Oscuro, Coquette, Periodico, Mariposas (CSS variables + selector)
 - [x] **[CC]** Selector por usuario en ajustes (guardado en perfiles.tema)
+
+### F7 — Mejoras de usabilidad (2026-06-20)
+- [x] **[CC]** Permitir registrar gastos en semanas pasadas (boton visible siempre, no solo semana actual)
+- [x] **[CC]** Permitir borrar gastos en semanas pasadas
+- [x] **[CC]** Mostrar sobre de Ahorro como card en la vista semanal (saldo acumulado + aportacion + gastado)
 
 ---
 
