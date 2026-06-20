@@ -554,13 +554,26 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
 
       <div className="grid grid-cols-2 gap-2 mb-4">
         {gastables.map((s) => <SobreCard key={s.id} sobre={s} gastado={gastadoPor(s.id)} />)}
+        {sobres.filter((s) => s.es_ahorro).map((s) => (
+          <div key={s.id} className="sobre-card col-span-2">
+            <div className="sobre-flap" style={{ background: "var(--green)" }} />
+            <div className="px-3 pt-5 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🐷</span>
+                <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{s.nombre}</span>
+              </div>
+              <div className="mt-2 num text-xl font-semibold" style={{ color: "var(--green)" }}>{money(Number(s.saldo_acumulado))}</div>
+              <div className="text-xs" style={{ color: "var(--ink-soft)" }}>
+                +{money(Number(s.aportacion_semanal))}/sem · gastado: {money(gastadoPor(s.id))}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {isCurrent && (
-        <button onClick={() => setShowForm(true)} className="w-full rounded-xl py-3 font-bold text-sm mb-4" style={{ background: "var(--green)", color: "#fff" }}>
-          + Registrar gasto
-        </button>
-      )}
+      <button onClick={() => setShowForm(true)} className="w-full rounded-xl py-3 font-bold text-sm mb-4" style={{ background: "var(--green)", color: "#fff" }}>
+        + Registrar gasto
+      </button>
 
       {/* Libreta con filtro */}
       <div className="flex items-center justify-between mb-2">
@@ -604,12 +617,12 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
                 </div>
                 <div className="num text-sm font-semibold" style={{ color: "var(--ink)" }}>{money(Number(g.monto))}</div>
                 <button className="text-xs px-1 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => setEditingGasto(g)}>✎</button>
-                {isCurrent && (pendingDelete === g.id ? (
+                {pendingDelete === g.id ? (
                   <button className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: "var(--red)", color: "#fff" }}
                     onClick={() => { onDelete(g.id); setPendingDelete(null); }}>Borrar?</button>
                 ) : (
                   <button className="text-xs px-1 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => setPendingDelete(g.id)}>✕</button>
-                ))}
+                )}
               </div>
             );
           })}
