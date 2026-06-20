@@ -226,20 +226,25 @@ El eCPM sube a ~$3.50-$5 USD (2-3x sobre generico):
 
 ## 6. Costos estimados de operacion
 
-| Concepto | Costo | Frecuencia |
-|----------|------:|-----------|
-| Supabase (plan gratuito hasta 50k MAU) | $0 | — |
-| Supabase Pro (si superas 50k MAU) | ~$25 USD/mes | Mensual |
-| Vercel (plan gratuito) | $0 | — |
-| Vercel Pro (si necesitas mas) | ~$20 USD/mes | Mensual |
-| Google Play Developer | $25 USD | Unico |
-| Dominio web | ~$200 MXN | Anual |
-| **Total año 1 (< 50k usuarios)** | **~$250 USD (~$4,500 MXN)** | |
-| **Total año 2+ (> 50k usuarios)** | **~$540 USD/año (~$9,700 MXN)** | |
+| Concepto | Costo | Frecuencia | Cuando aplica |
+|----------|------:|-----------|---------------|
+| Supabase (plan gratuito hasta 50k MAU) | $0 | — | Siempre gratis bajo 50k |
+| Vercel (plan gratuito) | $0 | — | Siempre gratis bajo limites |
+| Google Play Developer | $25 USD (~$450 MXN) | Unico | Al publicar |
+| Dominio web (landing page) | ~$200 MXN | Anual | Desde fase C3 |
+| Supabase Pro (si superas 50k MAU) | ~$25 USD/mes (~$450 MXN) | Mensual | Solo si > 50k usuarios |
+| Vercel Pro (si necesitas mas capacidad) | ~$20 USD/mes (~$360 MXN) | Mensual | Solo si > 50k usuarios |
 
-Los costos son extremadamente bajos porque el stack (Supabase + Vercel) tiene planes
-gratuitos generosos. El margen de ganancia es altisimo comparado con apps que pagan
-servidores dedicados.
+| Escenario | Costos | Notas |
+|-----------|-------:|-------|
+| **Año 1 (< 50k usuarios)** | **~$650 MXN total** | $450 Google (unico) + $200 dominio (anual) |
+| **Año 2 (< 50k usuarios)** | **~$200 MXN total** | Solo renovacion de dominio |
+| **Cuando superes 50k usuarios** | **~$9,900 MXN/año adicional** | Supabase Pro + Vercel Pro |
+
+Los costos son extremadamente bajos porque Supabase y Vercel tienen planes gratuitos
+generosos que cubren hasta 50,000 usuarios. Hasta ese punto, el unico gasto real es
+el pago unico de Google Play ($450 MXN) y el dominio anual ($200 MXN). El margen de
+ganancia es altisimo comparado con apps que pagan servidores dedicados.
 
 ---
 
