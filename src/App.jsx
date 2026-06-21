@@ -1409,7 +1409,7 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
 }
 
 /* ---------- Tab Analisis (F5) ---------- */
-function TabAnalisis({ gastos, sobres, presupSemanal, onNavToWeek, inicioSobres }) {
+function TabAnalisis({ gastos, sobres, tarjetas, presupSemanal, onNavToWeek, inicioSobres }) {
   const { money, weekStartOf, weekOf, weekLabel, categorias, catLabel, catColor, weekDayOrder, diaInicio } = useCuenta();
   const [excluir, setExcluir] = useState(false);
   const [periodo, setPeriodo] = useState("semana");
@@ -1631,6 +1631,90 @@ function TabAnalisis({ gastos, sobres, presupSemanal, onNavToWeek, inicioSobres 
         </ResponsiveContainer>
         <div className="text-[10px] text-center mt-1" style={{ color: "var(--ink-soft)" }}>semanas atras</div>
       </div>
+
+      {(() => {
+        const MEDIO_COLORS = { efectivo: "#16a34a", debito: "#2563eb", credito: "#dc2626", transferencia: "#7c3aed" };
+        const porMedio = MEDIOS.map((m) => {
+          const val = gastosEnPeriodo.filter((g) => g.medio_pago === m).reduce((a, g) => a + Number(g.monto), 0);
+          return { name: MEDIOS_LABEL[m], value: val, pct: totalPeriodo > 0 ? Math.round((val / totalPeriodo) * 100) : 0, color: MEDIO_COLORS[m], count: gastosEnPeriodo.filter((g) => g.medio_pago === m).length };
+        }).filter((x) => x.value > 0);
+
+        const tarjetasActivas = (tarjetas || []).filter((t) => t.activo);
+        const porTarjeta = tarjetasActivas.map((t) => {
+          const gs = gastosEnPeriodo.filter((g) => g.tarjeta_id === t.id);
+          return { nombre: t.nombre, banco: t.banco, ultimos4: t.ultimos4, total: gs.reduce((a, g) => a + Number(g.monto), 0), count: gs.length };
+        }).filter((x) => x.total > 0).sort((a, b) => b.total - a.total);
+        const maxTarjeta = porTarjeta.length > 0 ? porTarjeta[0].total : 1;
+
+        return (
+          <>
+            <div className="rounded-xl p-3 mb-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+              <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--ink-soft)" }}>Por medio de pago</h3>
+              {porMedio.length > 0 ? (
+                <>
+                  <div className="flex items-center">
+                    <ResponsiveContainer width="50%" height={160}>
+                      <PieChart>
+                        <Pie data={porMedio} dataKey="value" cx="50%" cy="50%" innerRadius={35} outerRadius={65} paddingAngle={2}>
+                          {porMedio.map((e, i) => <Cell key={i} fill={e.color} />)}
+                        </Pie>
+                        <Tooltip {...ttStyle} formatter={(v) => money(v)} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="flex-1 pl-2">
+                      {porMedio.map((m) => (
+                        <div key={m.name} className="flex items-center justify-between text-xs py-0.5">
+                          <span className="flex items-center gap-1">
+                            <span className="inline-block w-2 h-2 rounded-full" style={{ background: m.color }} />
+                            <span style={{ color: "var(--ink-soft)" }}>{m.name}</span>
+                          </span>
+                          <span className="num font-semibold" style={{ color: "var(--ink)" }}>{m.pct}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-1 mt-2">
+                    {porMedio.map((m) => (
+                      <div key={m.name} className="flex items-center justify-between text-xs">
+                        <span style={{ color: "var(--ink-soft)" }}>{m.name} · {m.count} gasto{m.count === 1 ? "" : "s"}</span>
+                        <span className="num font-semibold" style={{ color: "var(--ink)" }}>{money(m.value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm text-center py-4" style={{ color: "var(--ink-soft)" }}>Sin gastos en este periodo</div>
+              )}
+            </div>
+
+            {porTarjeta.length > 0 && (
+              <div className="rounded-xl p-3 mb-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+                <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--ink-soft)" }}>Gasto por tarjeta</h3>
+                <div className="space-y-2">
+                  {porTarjeta.map((t, i) => (
+                    <div key={t.nombre}>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-xs font-semibold" style={{ color: "var(--ink)" }}>
+                          {i === 0 && "👑 "}{t.nombre}
+                          {t.banco && <span className="font-normal" style={{ color: "var(--ink-soft)" }}> · {t.banco}</span>}
+                          {t.ultimos4 && <span className="num font-normal" style={{ color: "var(--ink-soft)" }}> •{t.ultimos4}</span>}
+                        </span>
+                        <span className="num text-xs font-bold" style={{ color: "var(--ink)" }}>{money(t.total)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
+                          <div className="h-full rounded-full" style={{ width: `${(t.total / maxTarjeta) * 100}%`, background: "var(--red)" }} />
+                        </div>
+                        <span className="text-[10px] num" style={{ color: "var(--ink-soft)" }}>{t.count} gasto{t.count === 1 ? "" : "s"}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }
@@ -2018,7 +2102,7 @@ function AppMain() {
         {tab === "libreta" && <TabLibreta sobres={sobres} gastos={gastos} tarjetas={tarjetas} onEditGasto={editGasto} onDelete={deleteGasto} />}
         {tab === "sobres" && <TabSobres sobres={sobres} gastos={gastos} cierres={cierres} presupSemanal={presupSemanal} onSaveSobre={saveSobre} onDeleteSobre={deleteSobre} onSavePresup={savePresup} onConfigSaldos={configSaldos} />}
         {tab === "pagos" && <TabPagos pagos={pagos} sobres={sobres} msi={msi} tarjetas={tarjetas} gastos={gastos} onSavePago={savePago} onDeletePago={deletePago} onPagar={pagarRecurrente} onSaveMSI={saveMSI} onDeleteMSI={deleteMSI} onSaveTarjeta={saveTarjeta} onDeleteTarjeta={deleteTarjeta} onPagarTarjeta={pagarTarjeta} />}
-        {tab === "analisis" && <TabAnalisis gastos={gastos} sobres={sobres} presupSemanal={presupSemanal} onNavToWeek={navToWeek} inicioSobres={inicioSobres} />}
+        {tab === "analisis" && <TabAnalisis gastos={gastos} sobres={sobres} tarjetas={tarjetas} presupSemanal={presupSemanal} onNavToWeek={navToWeek} inicioSobres={inicioSobres} />}
       </div>
 
       {showPagoForm && <GastoForm sobres={sobres} tarjetas={tarjetas} viewedWS={viewedWS} isCurrent={true} onAdd={confirmarPago} onClose={() => setShowPagoForm(null)} prefill={showPagoForm} />}
