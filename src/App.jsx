@@ -1338,17 +1338,23 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
             ))}
           </div>
 
-          {medio === "credito" && tarjetasActivas.length > 0 && (
+          {medio === "credito" && (
             <>
               <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Tarjeta</label>
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {tarjetasActivas.map((t) => (
-                  <button key={t.id} onClick={() => setPagoTarjetaId(t.id)} className="chip"
-                    style={pagoTarjetaId === t.id ? { background: "var(--red)", color: "#fff", borderColor: "var(--red)" } : {}}>
-                    💳 {t.nombre}
-                  </button>
-                ))}
-              </div>
+              {tarjetasActivas.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {tarjetasActivas.map((t) => (
+                    <button key={t.id} onClick={() => setPagoTarjetaId(t.id)} className="chip"
+                      style={pagoTarjetaId === t.id ? { background: "var(--red)", color: "#fff", borderColor: "var(--red)" } : {}}>
+                      💳 {t.nombre}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-xs rounded-xl px-3 py-2 mb-3" style={{ background: "var(--paper)", color: "var(--ink-soft)" }}>
+                  No tienes tarjetas. Agregalas arriba en "Mis tarjetas".
+                </div>
+              )}
             </>
           )}
 
