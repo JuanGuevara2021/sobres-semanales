@@ -5,6 +5,7 @@ import { supabase } from "./lib/supabase";
 import { toStr, fromStr, addDays, MESES, DIAS, DIAS_INICIO_OPTIONS, COLORES_CATEGORIA } from "./lib/config";
 import Login from "./components/Login";
 import OnboardingWizard from "./components/OnboardingWizard";
+import PinLock, { hasPin, isUnlocked, setPin, clearUnlock } from "./components/PinLock";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, ReferenceLine, CartesianGrid, LabelList,
@@ -1195,20 +1196,44 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
 
   function tarjetaForm() {
     return (
-      <div className="rounded-xl p-3 mb-2" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
-        <div className="flex gap-2 mb-2">
-          <input type="text" placeholder="Nombre (ej: BBVA Azul)" value={tNombre} onChange={(e) => setTNombre(e.target.value)} className="flex-1 rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
-          <input type="text" placeholder="Banco" value={tBanco} onChange={(e) => setTBanco(e.target.value)} className="w-28 rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
-        </div>
-        <div className="flex gap-2 mb-2">
-          <input type="text" placeholder="Ultimos 4" value={tUltimos4} onChange={(e) => setTUltimos4(e.target.value)} maxLength={4} className="w-24 num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
-          <input type="number" inputMode="numeric" placeholder="Dia corte" value={tDiaCorte} onChange={(e) => setTDiaCorte(e.target.value)} className="flex-1 num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
-          <input type="number" inputMode="numeric" placeholder="Dia pago" value={tDiaPago} onChange={(e) => setTDiaPago(e.target.value)} className="flex-1 num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
-        </div>
-        {tMsg && <div className="text-xs mb-2" style={{ color: "var(--red)" }}>{tMsg}</div>}
-        <div className="flex gap-2">
-          <button onClick={saveTarjeta} className="flex-1 rounded-xl py-2 text-sm font-bold" style={{ background: "var(--green)", color: "#fff" }}>Guardar</button>
-          <button onClick={() => setEditTarjeta(null)} className="px-4 rounded-xl py-2 text-sm font-semibold" style={{ color: "var(--ink-soft)" }}>Cancelar</button>
+      <div className="fixed inset-0 z-30 flex items-end justify-center" style={{ background: "rgba(34,50,74,.45)" }} onClick={() => setEditTarjeta(null)}>
+        <div className="w-full max-w-md rounded-t-2xl p-4 pb-6 overflow-y-auto" style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>{editTarjeta === "nuevo" ? "Nueva tarjeta" : "Editar tarjeta"}</h2>
+            <button className="text-sm px-2 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => setEditTarjeta(null)}>Cerrar</button>
+          </div>
+
+          <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Nombre</label>
+          <input type="text" placeholder="ej: BBVA Azul" value={tNombre} onChange={(e) => setTNombre(e.target.value)} autoFocus
+            className="w-full rounded-xl px-3 py-2 text-sm outline-none mb-3" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+
+          <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Banco</label>
+          <input type="text" placeholder="ej: BBVA, Banorte..." value={tBanco} onChange={(e) => setTBanco(e.target.value)}
+            className="w-full rounded-xl px-3 py-2 text-sm outline-none mb-3" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+
+          <div className="flex gap-2 mb-3">
+            <div className="flex-1">
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Ultimos 4</label>
+              <input type="text" placeholder="1234" value={tUltimos4} onChange={(e) => setTUltimos4(e.target.value)} maxLength={4}
+                className="w-full num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Dia corte</label>
+              <input type="number" inputMode="numeric" placeholder="15" value={tDiaCorte} onChange={(e) => setTDiaCorte(e.target.value)}
+                className="w-full num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Dia pago</label>
+              <input type="number" inputMode="numeric" placeholder="5" value={tDiaPago} onChange={(e) => setTDiaPago(e.target.value)}
+                className="w-full num rounded-xl px-3 py-2 text-sm outline-none" style={{ border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink)" }} />
+            </div>
+          </div>
+
+          {tMsg && <div className="text-xs mb-2" style={{ color: "var(--red)" }}>{tMsg}</div>}
+          <div className="flex gap-2">
+            <button onClick={saveTarjeta} className="flex-1 rounded-xl py-2.5 text-sm font-bold" style={{ background: "var(--green)", color: "#fff" }}>Guardar</button>
+            <button onClick={() => setEditTarjeta(null)} className="px-4 rounded-xl py-2.5 text-sm font-semibold" style={{ color: "var(--ink-soft)", border: "1px solid var(--line)" }}>Cancelar</button>
+          </div>
         </div>
       </div>
     );
@@ -1610,6 +1635,9 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
   const [newCatNombre, setNewCatNombre] = useState("");
   const [newCatColor, setNewCatColor] = useState(COLORES_CATEGORIA[0]);
   const [showAddCat, setShowAddCat] = useState(false);
+  const [pinActivo, setPinActivo] = useState(hasPin());
+  const [pinInput, setPinInput] = useState("");
+  const [showPinSetup, setShowPinSetup] = useState(false);
 
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
@@ -1735,6 +1763,39 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
             {fondoCustom ? "Cambiar" : "Elegir de galeria"}
             <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
           </label>
+        </div>
+
+        <p className="text-xs font-bold mb-2 mt-5" style={{ color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Seguridad</p>
+        <div className="rounded-xl p-3" style={{ background: "var(--paper)", border: "1px solid var(--line)" }}>
+          {!showPinSetup ? (
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>PIN de acceso</div>
+                <div className="text-xs" style={{ color: "var(--ink-soft)" }}>{pinActivo ? "Activado — se pide al abrir" : "Desactivado"}</div>
+              </div>
+              {pinActivo ? (
+                <button onClick={() => { setPin(null); clearUnlock(); setPinActivo(false); }} className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                  style={{ color: "var(--red)", border: "1px solid var(--line)" }}>Quitar</button>
+              ) : (
+                <button onClick={() => setShowPinSetup(true)} className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                  style={{ color: "var(--green)", border: "1px solid var(--line)" }}>Activar</button>
+              )}
+            </div>
+          ) : (
+            <div>
+              <div className="text-sm font-semibold mb-2" style={{ color: "var(--ink)" }}>Elige un PIN de 4 digitos</div>
+              <div className="flex gap-2 items-center">
+                <input type="password" inputMode="numeric" maxLength={4} pattern="[0-9]*" value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
+                  autoFocus className="w-24 rounded-lg px-3 py-2 text-center text-lg font-mono tracking-widest outline-none"
+                  style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--card)" }} />
+                <button onClick={() => { if (pinInput.length === 4) { setPin(pinInput); setPinActivo(true); setShowPinSetup(false); setPinInput(""); } }}
+                  disabled={pinInput.length !== 4} className="text-xs font-bold px-3 py-2 rounded-lg"
+                  style={{ background: pinInput.length === 4 ? "var(--green)" : "var(--line)", color: pinInput.length === 4 ? "#fff" : "var(--ink-soft)" }}>Guardar</button>
+                <button onClick={() => { setShowPinSetup(false); setPinInput(""); }} className="text-xs px-2 py-2" style={{ color: "var(--ink-soft)" }}>✕</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1980,8 +2041,11 @@ export default function App() {
 
 function AppContent() {
   const { session, perfil, cargando } = useAuth();
+  const [pinOk, setPinOk] = useState(!hasPin() || isUnlocked());
+
   if (cargando) return <div className="min-h-screen flex items-center justify-center" style={{ background: "#F6F4ED" }}><div className="text-sm" style={{ color: "#5A6B85" }}>Cargando...</div></div>;
   if (!session) return <Login />;
   if (!perfil) return <OnboardingWizard />;
+  if (hasPin() && !pinOk) return <PinLock nombre={perfil.nombre} onUnlock={() => setPinOk(true)} />;
   return <CuentaProvider cuentaId={perfil.cuenta_id}><AppMain /></CuentaProvider>;
 }
