@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { CuentaProvider, useCuenta } from "./contexts/CuentaContext";
 import { supabase } from "./lib/supabase";
+import { toStr, fromStr, addDays, MESES, DIAS, DIAS_INICIO_OPTIONS, COLORES_CATEGORIA } from "./lib/config";
 import Login from "./components/Login";
-import SetupPerfil from "./components/SetupPerfil";
+import OnboardingWizard from "./components/OnboardingWizard";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, ReferenceLine, CartesianGrid, LabelList,
@@ -19,9 +21,6 @@ import {
 
 const MEDIOS = ["efectivo", "debito", "credito", "transferencia"];
 const MEDIOS_LABEL = { efectivo: "Efectivo", debito: "Debito", credito: "Credito", transferencia: "Transferencia" };
-const CATEGORIAS = ["casa", "renta", "diversion", "salud", "escuela", "tarjetas"];
-const CAT_LABEL = { casa: "Casa", renta: "Renta", diversion: "Diversion", salud: "Salud", escuela: "Escuela", tarjetas: "Tarjetas" };
-const CAT_COLOR = { casa: "#2563eb", renta: "#7c3aed", diversion: "#db2777", salud: "#059669", escuela: "#d97706", tarjetas: "#dc2626" };
 const EMOJIS = ["🛒", "🍽️", "🏠", "🎮", "💊", "📚", "🚇", "👕", "🐶", "🎁", "☕", "⚽", "📱", "📞", "🎉", "🐷"];
 const FREQ_LABEL = { semanal: "Semanal", quincenal: "Quincenal", mensual: "Mensual" };
 
@@ -58,42 +57,10 @@ const TEMAS = {
   },
 };
 
-/* ---------- helpers de fecha (semana sab-vie) ---------- */
-const pad = (n) => String(n).padStart(2, "0");
-const toStr = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const fromStr = (s) => {
-  const [y, m, dd] = s.split("-").map(Number);
-  return new Date(y, m - 1, dd);
-};
-const addDays = (d, n) => {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
-};
-const weekStartOf = (d) => addDays(d, -((d.getDay() + 1) % 7));
-const weekOf = (fechaStr) => toStr(weekStartOf(fromStr(fechaStr)));
-
-const DIAS = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
-const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-const fmtDia = (s) => {
-  const d = fromStr(s);
-  return `${DIAS[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]}`;
-};
-const weekLabel = (ws) => {
-  const a = fromStr(ws);
-  const b = addDays(a, 6);
-  return `Sab ${a.getDate()} ${MESES[a.getMonth()]} – Vie ${b.getDate()} ${MESES[b.getMonth()]}`;
-};
-const money = (n) =>
-  new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: Math.abs(n % 1) > 0.001 ? 2 : 0,
-  }).format(n);
+/* ---------- helpers de fecha importados de config.js ---------- */
 
 /* ---------- helpers para pagos recurrentes ---------- */
-function getPagosProximos(pagos, gastos) {
+function getPagosProximos(pagos, gastos, weekStartOf, weekOf) {
   const hoy = new Date();
   const diaHoy = hoy.getDate();
   const diaSemHoy = hoy.getDay();
@@ -175,7 +142,7 @@ function calcMSI(msi, pagoEsteMes = false) {
 }
 
 /* ---------- cierre automatico v2.1 ---------- */
-async function autoClose(sobres, gastos, cierresExistentes, cuentaId) {
+async function autoClose(sobres, gastos, cierresExistentes, cuentaId, weekStartOf, weekOf) {
   const todayWS = toStr(weekStartOf(new Date()));
   const semanasConGastos = [...new Set(gastos.map((g) => weekOf(g.fecha)))];
   const yaCerradas = new Set(cierresExistentes.map((c) => c.semana));
@@ -227,12 +194,14 @@ async function autoClose(sobres, gastos, cierresExistentes, cuentaId) {
    ============================================================ */
 
 function SobreCard({ sobre, gastado }) {
+  const { money, catLabel, catColor } = useCuenta();
   const presup = Number(sobre.aportacion_semanal);
+  const catDef = sobre.categoria_default_nombre || sobre.categoria_default;
   const disponible = sobre.tipo_cierre === "acumula" ? Number(sobre.saldo_acumulado) + presup - gastado : presup - gastado;
   const pct = presup > 0 ? Math.max(0, Math.min(1, disponible / presup)) : 0;
   const estado = disponible < 0 ? "rojo" : pct <= 0.25 ? "ambar" : "verde";
   const colorVar = estado === "rojo" ? "var(--red)" : estado === "ambar" ? "var(--amber)" : "var(--green)";
-  const catColor = CAT_COLOR[sobre.categoria_default] || "#666";
+  const cc = catColor[catDef] || "#666";
   return (
     <div className="sobre-card">
       <div className="sobre-flap" />
@@ -249,8 +218,8 @@ function SobreCard({ sobre, gastado }) {
           <div className="h-full rounded-full" style={{ width: `${Math.max(0, pct) * 100}%`, background: colorVar, transition: "width .3s" }} />
         </div>
         <div className="mt-1.5">
-          <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: catColor + "18", color: catColor }}>
-            {CAT_LABEL[sobre.categoria_default]}
+          <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: cc + "18", color: cc }}>
+            {catLabel[catDef]}
           </span>
         </div>
       </div>
@@ -259,15 +228,17 @@ function SobreCard({ sobre, gastado }) {
 }
 
 function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClose, prefill, editingId }) {
+  const { money, fmtDia, categorias, catLabel, catColor } = useCuenta();
   const isEdit = !!editingId;
   const hoy = toStr(new Date());
   const gastables = sobres.filter((s) => !s.es_ahorro);
+  const catDef = (s) => s.categoria_default_nombre || s.categoria_default;
   const [monto, setMonto] = useState(prefill?.monto ? String(prefill.monto) : "");
   const [sobreId, setSobreId] = useState(prefill?.fuera ? "" : prefill?.sobre_id || (isEdit ? "" : gastables[0]?.id || ""));
   const [fueraDeSobres, setFueraDeSobres] = useState(prefill?.fuera || (isEdit && !prefill?.sobre_id));
   const [medio, setMedio] = useState(prefill?.medio_pago || "efectivo");
   const [tarjetaId, setTarjetaId] = useState(prefill?.tarjeta_id || "");
-  const [categoria, setCategoria] = useState(prefill?.categoria || gastables[0]?.categoria_default || "casa");
+  const [categoria, setCategoria] = useState(prefill?.categoria || (gastables[0] ? catDef(gastables[0]) : categorias[0]?.nombre || "casa"));
   const [nota, setNota] = useState(prefill?.nota || "");
   const [fecha, setFecha] = useState(prefill?.fecha || (isCurrent ? hoy : viewedWS));
   const [error, setError] = useState("");
@@ -279,8 +250,8 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClo
 
   const tarjetasActivas = (tarjetas || []).filter((t) => t.activo);
 
-  const seleccionarSobre = (id) => { setSobreId(id); setFueraDeSobres(false); const s = sobres.find((x) => x.id === id); if (s && !isEdit) setCategoria(s.categoria_default); };
-  const marcarFuera = () => { setFueraDeSobres(true); setSobreId(""); if (!isEdit) setCategoria("casa"); };
+  const seleccionarSobre = (id) => { setSobreId(id); setFueraDeSobres(false); const s = sobres.find((x) => x.id === id); if (s && !isEdit) setCategoria(catDef(s)); };
+  const marcarFuera = () => { setFueraDeSobres(true); setSobreId(""); if (!isEdit) setCategoria(categorias[0]?.nombre || "casa"); };
 
   const submit = async () => {
     const m = parseFloat(monto);
@@ -329,10 +300,10 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClo
 
         <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Categoria</label>
         <div className="flex flex-wrap gap-1.5 mb-3">
-          {CATEGORIAS.map((c) => (
-            <button key={c} onClick={() => setCategoria(c)} className="chip"
-              style={categoria === c ? { background: CAT_COLOR[c], color: "#fff", borderColor: CAT_COLOR[c] } : {}}>
-              {CAT_LABEL[c]}
+          {categorias.map((c) => (
+            <button key={c.nombre} onClick={() => setCategoria(c.nombre)} className="chip"
+              style={categoria === c.nombre ? { background: c.color, color: "#fff", borderColor: c.color } : {}}>
+              {c.label}
             </button>
           ))}
         </div>
@@ -366,7 +337,7 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClo
             <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Dia</label>
             <select value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-full rounded-xl px-3 py-2 text-sm"
               style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }}>
-              {dias.map((d) => <option key={d} value={d}>{fmtDia(d)}</option>)}
+              {dias.map((dd) => <option key={dd} value={dd}>{fmtDia(dd)}</option>)}
             </select>
           </div>
           <div className="flex-1">
@@ -435,6 +406,7 @@ function ConfigSaldosModal({ sobres, onSave, onClose }) {
 
 /* ---------- Tab Semana (F2 completo) ---------- */
 function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemanal, offset, setOffset, onAdd, onDelete, onEditGasto, onPagar, onPosponer, onPagarTarjeta }) {
+  const { money, weekStartOf, weekOf, weekLabel, fmtDia, categorias, catLabel, catColor } = useCuenta();
   const [showForm, setShowForm] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [editingGasto, setEditingGasto] = useState(null);
@@ -464,7 +436,7 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
   const porDia = gastosFiltrados.reduce((acc, g) => { (acc[g.fecha] = acc[g.fecha] || []).push(g); return acc; }, {});
   const sobreDe = (id) => sobres.find((s) => s.id === id);
   const tarjetaDe = (id) => (tarjetas || []).find((t) => t.id === id);
-  const pagosProximos = isCurrent ? getPagosProximos(pagos, gastos) : [];
+  const pagosProximos = isCurrent ? getPagosProximos(pagos, gastos, weekStartOf, weekOf) : [];
   const tarjetasProximas = isCurrent ? getTarjetaRecordatorios(tarjetas || [], pagos, gastos) : [];
 
   return (
@@ -492,20 +464,20 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
         {gastadoTotal > 0 && (
           <>
             <div className="flex gap-0.5 mt-2 h-2 rounded-full overflow-hidden">
-              {CATEGORIAS.map((c) => {
-                const m = gastosSemana.filter((g) => g.categoria === c).reduce((a, g) => a + Number(g.monto), 0);
+              {categorias.map((c) => {
+                const m = gastosSemana.filter((g) => g.categoria === c.nombre).reduce((a, g) => a + Number(g.monto), 0);
                 if (!m) return null;
-                return <div key={c} style={{ width: `${(m / gastadoTotal) * 100}%`, background: CAT_COLOR[c] }} />;
+                return <div key={c.nombre} style={{ width: `${(m / gastadoTotal) * 100}%`, background: c.color }} />;
               })}
             </div>
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
-              {CATEGORIAS.map((c) => {
-                const m = gastosSemana.filter((g) => g.categoria === c).reduce((a, g) => a + Number(g.monto), 0);
+              {categorias.map((c) => {
+                const m = gastosSemana.filter((g) => g.categoria === c.nombre).reduce((a, g) => a + Number(g.monto), 0);
                 if (!m) return null;
                 return (
-                  <span key={c} className="text-[10px]" style={{ color: "rgba(255,255,255,.75)" }}>
-                    <span className="inline-block w-1.5 h-1.5 rounded-full mr-0.5 align-middle" style={{ background: CAT_COLOR[c] }} />
-                    {CAT_LABEL[c]} {money(m)}
+                  <span key={c.nombre} className="text-[10px]" style={{ color: "rgba(255,255,255,.75)" }}>
+                    <span className="inline-block w-1.5 h-1.5 rounded-full mr-0.5 align-middle" style={{ background: c.color }} />
+                    {c.label} {money(m)}
                   </span>
                 );
               })}
@@ -599,15 +571,15 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
           {porDia[dia].map((g) => {
             const s = sobreDe(g.sobre_id);
             const tc = tarjetaDe(g.tarjeta_id);
-            const catColor = CAT_COLOR[g.categoria] || "#666";
+            const cc = catColor[g.categoria] || "#666";
             return (
               <div key={g.id} className="flex items-center gap-2 rounded-xl px-3 py-2 mb-1" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
                 <span>{s ? s.emoji : "🚫"}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{g.nota || (s ? s.nombre : "Fuera de sobres")}</span>
-                    <span className="inline-block text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ background: catColor + "18", color: catColor }}>
-                      {CAT_LABEL[g.categoria]}
+                    <span className="inline-block text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ background: cc + "18", color: cc }}>
+                      {catLabel[g.categoria]}
                     </span>
                   </div>
                   <div className="text-xs" style={{ color: "var(--ink-soft)" }}>
@@ -642,12 +614,13 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
 
 /* ---------- Tab Sobres ---------- */
 function TabSobres({ sobres, gastos, cierres, presupSemanal, onSaveSobre, onDeleteSobre, onSavePresup, onConfigSaldos }) {
+  const { money, weekOf, categorias, catLabel, catColor } = useCuenta();
   const [editing, setEditing] = useState(null);
   const [nombre, setNombre] = useState("");
   const [emoji, setEmoji] = useState(EMOJIS[0]);
   const [aportacion, setAportacion] = useState("");
   const [tipoCierre, setTipoCierre] = useState("ahorro");
-  const [catDefault, setCatDefault] = useState("casa");
+  const [catDefault, setCatDefault] = useState(null);
   const [saldoInicial, setSaldoInicial] = useState("0");
   const [pendingDelete, setPendingDelete] = useState(null);
   const [msg, setMsg] = useState("");
@@ -658,8 +631,8 @@ function TabSobres({ sobres, gastos, cierres, presupSemanal, onSaveSobre, onDele
   const gastables = sobres.filter((s) => !s.es_ahorro);
   const sumaSobres = sobres.reduce((a, s) => a + Number(s.aportacion_semanal), 0);
 
-  const startEdit = (s) => { setEditing(s.id); setNombre(s.nombre); setEmoji(s.emoji); setAportacion(String(s.aportacion_semanal)); setTipoCierre(s.tipo_cierre); setCatDefault(s.categoria_default); setMsg(""); };
-  const startNew = () => { setEditing("nuevo"); setNombre(""); setEmoji(EMOJIS[0]); setAportacion(""); setTipoCierre("ahorro"); setCatDefault("casa"); setSaldoInicial("0"); setMsg(""); };
+  const startEdit = (s) => { setEditing(s.id); setNombre(s.nombre); setEmoji(s.emoji); setAportacion(String(s.aportacion_semanal)); setTipoCierre(s.tipo_cierre); setCatDefault(s.categoria_default_nombre || s.categoria_default); setMsg(""); };
+  const startNew = () => { setEditing("nuevo"); setNombre(""); setEmoji(EMOJIS[0]); setAportacion(""); setTipoCierre("ahorro"); setCatDefault(categorias[0]?.nombre || "casa"); setSaldoInicial("0"); setMsg(""); };
   const cancel = () => setEditing(null);
 
   const save = async () => {
@@ -667,7 +640,7 @@ function TabSobres({ sobres, gastos, cierres, presupSemanal, onSaveSobre, onDele
     if (!nombre.trim()) return setMsg("Ponle nombre al sobre.");
     if (isNaN(p) || p < 0) return setMsg("Aportacion invalida.");
     try {
-      const payload = { id: editing === "nuevo" ? undefined : editing, nombre: nombre.trim(), emoji, aportacion_semanal: p, tipo_cierre: tipoCierre, categoria_default: catDefault };
+      const payload = { id: editing === "nuevo" ? undefined : editing, nombre: nombre.trim(), emoji, aportacion_semanal: p, tipo_cierre: tipoCierre, categoria_default_nombre: catDefault };
       if (editing === "nuevo") payload.saldo_inicial = parseFloat(saldoInicial) || 0;
       await onSaveSobre(payload);
       setEditing(null);
@@ -702,7 +675,7 @@ function TabSobres({ sobres, gastos, cierres, presupSemanal, onSaveSobre, onDele
           <option value="acumula">Acumula (arrastra)</option>
         </select>
         <select value={catDefault} onChange={(e) => setCatDefault(e.target.value)} className="flex-1 rounded-xl px-3 py-2 text-sm" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }}>
-          {CATEGORIAS.map((c) => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
+          {categorias.map((c) => <option key={c.nombre} value={c.nombre}>{c.label}</option>)}
         </select>
       </div>
       {editing === "nuevo" && (
@@ -759,7 +732,7 @@ function TabSobres({ sobres, gastos, cierres, presupSemanal, onSaveSobre, onDele
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{s.nombre}</span>
-              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: CAT_COLOR[s.categoria_default] + "18", color: CAT_COLOR[s.categoria_default] }}>{CAT_LABEL[s.categoria_default]}</span>
+              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: (catColor[s.categoria_default_nombre || s.categoria_default] || "#666") + "18", color: catColor[s.categoria_default_nombre || s.categoria_default] || "#666" }}>{catLabel[s.categoria_default_nombre || s.categoria_default]}</span>
             </div>
             <div className="text-xs num" style={{ color: "var(--ink-soft)" }}>{money(Number(s.aportacion_semanal))} / sem · {s.tipo_cierre === "acumula" ? "acumula" : "ahorro"}</div>
           </div>
@@ -834,6 +807,7 @@ function TabSobres({ sobres, gastos, cierres, presupSemanal, onSaveSobre, onDele
 
 /* ---------- Tab Libreta ---------- */
 function TabLibreta({ sobres, gastos, tarjetas, onEditGasto, onDelete }) {
+  const { money, weekStartOf, weekOf, weekLabel, fmtDia, categorias, catLabel, catColor } = useCuenta();
   const [offsetLib, setOffsetLib] = useState(0);
   const [filtro, setFiltro] = useState("todos");
   const [pendingDelete, setPendingDelete] = useState(null);
@@ -878,20 +852,20 @@ function TabLibreta({ sobres, gastos, tarjetas, onEditGasto, onDelete }) {
       {totalSemana > 0 && (
         <div className="rounded-xl p-3 mb-3" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
           <div className="flex gap-0.5 h-2 rounded-full overflow-hidden mb-1.5">
-            {CATEGORIAS.map((c) => {
-              const m = gastosSemana.filter((g) => g.categoria === c).reduce((a, g) => a + Number(g.monto), 0);
+            {categorias.map((c) => {
+              const m = gastosSemana.filter((g) => g.categoria === c.nombre).reduce((a, g) => a + Number(g.monto), 0);
               if (!m) return null;
-              return <div key={c} style={{ width: `${(m / totalSemana) * 100}%`, background: CAT_COLOR[c] }} />;
+              return <div key={c.nombre} style={{ width: `${(m / totalSemana) * 100}%`, background: c.color }} />;
             })}
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-            {CATEGORIAS.map((c) => {
-              const m = gastosSemana.filter((g) => g.categoria === c).reduce((a, g) => a + Number(g.monto), 0);
+            {categorias.map((c) => {
+              const m = gastosSemana.filter((g) => g.categoria === c.nombre).reduce((a, g) => a + Number(g.monto), 0);
               if (!m) return null;
               return (
-                <span key={c} className="text-[10px]" style={{ color: "var(--ink-soft)" }}>
-                  <span className="inline-block w-1.5 h-1.5 rounded-full mr-0.5 align-middle" style={{ background: CAT_COLOR[c] }} />
-                  {CAT_LABEL[c]} {money(m)} ({Math.round((m / totalSemana) * 100)}%)
+                <span key={c.nombre} className="text-[10px]" style={{ color: "var(--ink-soft)" }}>
+                  <span className="inline-block w-1.5 h-1.5 rounded-full mr-0.5 align-middle" style={{ background: c.color }} />
+                  {c.label} {money(m)} ({Math.round((m / totalSemana) * 100)}%)
                 </span>
               );
             })}
@@ -922,15 +896,15 @@ function TabLibreta({ sobres, gastos, tarjetas, onEditGasto, onDelete }) {
           {porDia[dia].map((g) => {
             const s = sobreDe(g.sobre_id);
             const tc = tarjetaDe(g.tarjeta_id);
-            const catColor = CAT_COLOR[g.categoria] || "#666";
+            const cc = catColor[g.categoria] || "#666";
             return (
               <div key={g.id} className="flex items-center gap-2 rounded-xl px-3 py-2 mb-1" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
                 <span>{s ? s.emoji : "🚫"}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-medium truncate" style={{ color: "var(--ink)" }}>{g.nota || (s ? s.nombre : "Fuera de sobres")}</span>
-                    <span className="inline-block text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ background: catColor + "18", color: catColor }}>
-                      {CAT_LABEL[g.categoria]}
+                    <span className="inline-block text-[9px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ background: cc + "18", color: cc }}>
+                      {catLabel[g.categoria]}
                     </span>
                   </div>
                   <div className="text-xs" style={{ color: "var(--ink-soft)" }}>
@@ -963,6 +937,7 @@ function TabLibreta({ sobres, gastos, tarjetas, onEditGasto, onDelete }) {
 
 /* ---------- Tab Ahorro ---------- */
 function TabAhorro({ sobres, cierres, gastos }) {
+  const { money, weekLabel, fmtDia } = useCuenta();
   const [open, setOpen] = useState(null);
   const cierresOrden = [...cierres].sort((a, b) => (a.semana < b.semana ? 1 : -1));
   const sobreAhorro = sobres.find((s) => s.es_ahorro);
@@ -1023,11 +998,12 @@ function TabAhorro({ sobres, cierres, gastos }) {
 
 /* ---------- Tab Pagos (F3 + F4 + Tarjetas) ---------- */
 function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePago, onPagar, onSaveMSI, onDeleteMSI, onSaveTarjeta, onDeleteTarjeta, onPagarTarjeta }) {
+  const { money, categorias, catLabel, catColor } = useCuenta();
   const [editing, setEditing] = useState(null);
   const [nombre, setNombre] = useState(""); const [monto, setMonto] = useState(""); const [diaPago, setDiaPago] = useState(""); const [diaPago2, setDiaPago2] = useState("");
   const [frecuencia, setFrecuencia] = useState("mensual"); const [medio, setMedio] = useState("debito");
   const [pagoTarjetaId, setPagoTarjetaId] = useState("");
-  const [sobreId, setSobreId] = useState(""); const [categoria, setCategoria] = useState("casa");
+  const [sobreId, setSobreId] = useState(""); const [categoria, setCategoria] = useState(null);
   const [msg, setMsg] = useState(""); const [pendingDel, setPendingDel] = useState(null);
 
   const [editMSI, setEditMSI] = useState(null);
@@ -1057,7 +1033,7 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
   const totalMensual = pagosActivos.reduce((a, p) => a + montoReal(p) * (p.frecuencia === "semanal" ? 4 : p.frecuencia === "quincenal" ? 2 : 1), 0);
 
   const startEditPago = (p) => { setEditing(p.id); setNombre(p.nombre); setMonto(String(p.monto_estimado)); setDiaPago(p.dia_pago != null ? String(p.dia_pago) : ""); setDiaPago2(p.dia_pago_2 != null ? String(p.dia_pago_2) : ""); setFrecuencia(p.frecuencia || "mensual"); setMedio(p.medio_pago || "debito"); setPagoTarjetaId(p.tarjeta_id || ""); setSobreId(p.destino_sobre_id || ""); setCategoria(p.categoria); setMsg(""); };
-  const startNewPago = () => { setEditing("nuevo"); setNombre(""); setMonto(""); setDiaPago(""); setDiaPago2(""); setFrecuencia("mensual"); setMedio("debito"); setPagoTarjetaId(""); setSobreId(""); setCategoria("casa"); setMsg(""); };
+  const startNewPago = () => { setEditing("nuevo"); setNombre(""); setMonto(""); setDiaPago(""); setDiaPago2(""); setFrecuencia("mensual"); setMedio("debito"); setPagoTarjetaId(""); setSobreId(""); setCategoria(categorias[0]?.nombre || "casa"); setMsg(""); };
   const savePago = async () => {
     if (!nombre.trim()) return setMsg("Ponle nombre."); const m = parseFloat(monto); if (isNaN(m) || m <= 0) return setMsg("Monto invalido.");
     try { await onSavePago({ id: editing === "nuevo" ? undefined : editing, nombre: nombre.trim(), monto_estimado: m, dia_pago: diaPago !== "" ? parseInt(diaPago) : null, dia_pago_2: frecuencia === "quincenal" && diaPago2 ? parseInt(diaPago2) : null, frecuencia, medio_pago: medio, tarjeta_id: medio === "credito" && pagoTarjetaId ? pagoTarjetaId : null, destino_sobre_id: sobreId || null, categoria, activo: true }); setEditing(null); }
@@ -1148,7 +1124,7 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{p.nombre}</span>
-                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: CAT_COLOR[p.categoria] + "18", color: CAT_COLOR[p.categoria] }}>{CAT_LABEL[p.categoria]}</span>
+                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: (catColor[p.categoria] || "#666") + "18", color: catColor[p.categoria] || "#666" }}>{catLabel[p.categoria]}</span>
               </div>
               <div className="text-xs num" style={{ color: "var(--ink-soft)" }}>
                 {money(montoReal(p))} · {FREQ_LABEL[p.frecuencia] || "Mensual"}
@@ -1319,10 +1295,10 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
 
           <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Categoria</label>
           <div className="flex flex-wrap gap-1.5 mb-3">
-            {CATEGORIAS.map((c) => (
-              <button key={c} onClick={() => setCategoria(c)} className="chip"
-                style={categoria === c ? { background: CAT_COLOR[c], color: "#fff", borderColor: CAT_COLOR[c] } : {}}>
-                {CAT_LABEL[c]}
+            {categorias.map((c) => (
+              <button key={c.nombre} onClick={() => setCategoria(c.nombre)} className="chip"
+                style={categoria === c.nombre ? { background: c.color, color: "#fff", borderColor: c.color } : {}}>
+                {c.label}
               </button>
             ))}
           </div>
@@ -1403,6 +1379,7 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
 
 /* ---------- Tab Analisis (F5) ---------- */
 function TabAnalisis({ gastos, sobres, presupSemanal, onNavToWeek, inicioSobres }) {
+  const { money, weekStartOf, weekOf, weekLabel, categorias, catLabel, catColor, weekDayOrder, diaInicio } = useCuenta();
   const [excluir, setExcluir] = useState(false);
   const [periodo, setPeriodo] = useState("semana");
   const [modoDia, setModoDia] = useState("monto");
@@ -1418,20 +1395,19 @@ function TabAnalisis({ gastos, sobres, presupSemanal, onNavToWeek, inicioSobres 
     const startWS = toStr(addDays(fromStr(wsActual), -(numSem - 1) * 7));
     gastosEnPeriodo = gf.filter((g) => weekOf(g.fecha) >= startWS);
   } else {
-    const inicioMes = `${hoy.getFullYear()}-${pad(hoy.getMonth() + 1)}-01`;
+    const inicioMes = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-01`;
     gastosEnPeriodo = gf.filter((g) => g.fecha >= inicioMes);
   }
   const totalPeriodo = gastosEnPeriodo.reduce((a, g) => a + Number(g.monto), 0);
 
-  const porDiaRaw = [0, 1, 2, 3, 4, 5, 6].map((d) => {
+  const porDia = weekDayOrder.map((d) => {
     const gs = gastosEnPeriodo.filter((g) => fromStr(g.fecha).getDay() === d);
     return { dia: DIAS[d], monto: gs.reduce((a, g) => a + Number(g.monto), 0), compras: gs.length };
   });
-  const porDia = [porDiaRaw[6], ...porDiaRaw.slice(0, 6)];
 
-  const porCat = CATEGORIAS.map((c) => {
-    const val = gastosEnPeriodo.filter((g) => g.categoria === c).reduce((a, g) => a + Number(g.monto), 0);
-    return { name: CAT_LABEL[c], value: val, pct: totalPeriodo > 0 ? Math.round((val / totalPeriodo) * 100) : 0, color: CAT_COLOR[c] };
+  const porCat = categorias.map((c) => {
+    const val = gastosEnPeriodo.filter((g) => g.categoria === c.nombre).reduce((a, g) => a + Number(g.monto), 0);
+    return { name: c.label, value: val, pct: totalPeriodo > 0 ? Math.round((val / totalPeriodo) * 100) : 0, color: c.color };
   }).filter((x) => x.value > 0);
 
   const todasSemanas = [...new Set(gf.map((g) => weekOf(g.fecha)))].sort();
@@ -1442,7 +1418,7 @@ function TabAnalisis({ gastos, sobres, presupSemanal, onNavToWeek, inicioSobres 
     const d0 = fromStr(ws), d1 = addDays(d0, 6);
     return {
       ws, label: diff === 0 ? "Esta" : `Hace ${diff}`,
-      rango: `Sab ${d0.getDate()} ${MESES[d0.getMonth()]} – Vie ${d1.getDate()} ${MESES[d1.getMonth()]}`,
+      rango: weekLabel(ws),
       monto: gf.filter((g) => weekOf(g.fecha) === ws).reduce((sum, g) => sum + Number(g.monto), 0),
       offset: -diff,
     };
@@ -1599,8 +1575,13 @@ function TabAnalisis({ gastos, sobres, presupSemanal, onNavToWeek, inicioSobres 
   );
 }
 
-/* ---------- Selector de tema (F6) ---------- */
+/* ---------- Ajustes (F6) ---------- */
 function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose }) {
+  const { categorias, diaInicio, updateDiaInicio, addCategoria, removeCategoria } = useCuenta();
+  const [newCatNombre, setNewCatNombre] = useState("");
+  const [newCatColor, setNewCatColor] = useState(COLORES_CATEGORIA[0]);
+  const [showAddCat, setShowAddCat] = useState(false);
+
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1626,13 +1607,67 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
     reader.readAsDataURL(file);
   };
 
+  const handleAddCat = async () => {
+    const nombre = newCatNombre.trim().toLowerCase().replace(/\s+/g, "_");
+    const label = newCatNombre.trim();
+    if (!nombre) return;
+    const orden = categorias.length + 1;
+    await addCategoria({ nombre, label, color: newCatColor, orden });
+    setNewCatNombre("");
+    setShowAddCat(false);
+  };
+
   return (
     <div className="fixed inset-0 z-30 flex items-end justify-center" style={{ background: "rgba(34,50,74,.45)" }} onClick={onClose}>
       <div className="w-full max-w-md rounded-t-2xl p-4 pb-6 overflow-y-auto" style={{ background: "var(--card)", maxHeight: "80vh" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-extrabold" style={{ color: "var(--ink)" }}>Apariencia</h2>
+          <h2 className="text-base font-extrabold" style={{ color: "var(--ink)" }}>Ajustes</h2>
           <button className="text-sm px-2 py-1 font-semibold" style={{ color: "var(--ink-soft)" }} onClick={onClose}>Cerrar</button>
         </div>
+
+        <p className="text-xs font-bold mb-2" style={{ color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Inicio de semana</p>
+        <div className="flex gap-2 mb-5">
+          {DIAS_INICIO_OPTIONS.map((opt) => (
+            <button key={opt.value} onClick={() => updateDiaInicio(opt.value)} className="flex-1 rounded-xl py-2 text-sm font-semibold"
+              style={diaInicio === opt.value
+                ? { background: "var(--green)", color: "#fff", border: "2px solid var(--green)" }
+                : { background: "var(--paper)", color: "var(--ink)", border: "2px solid var(--line)" }}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        <p className="text-xs font-bold mb-2" style={{ color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Categorias</p>
+        <div className="space-y-1.5 mb-3">
+          {categorias.map((c) => (
+            <div key={c.nombre} className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "var(--paper)", border: "1px solid var(--line)" }}>
+              <span className="w-3 h-3 rounded-full" style={{ background: c.color }} />
+              <span className="text-sm font-semibold flex-1" style={{ color: "var(--ink)" }}>{c.label}</span>
+              {categorias.length > 1 && (
+                <button onClick={() => removeCategoria(c.nombre)} className="text-xs px-1.5 py-0.5" style={{ color: "var(--ink-soft)" }}>✕</button>
+              )}
+            </div>
+          ))}
+        </div>
+        {showAddCat ? (
+          <div className="rounded-xl p-3 mb-5" style={{ background: "var(--paper)", border: "1px solid var(--line)" }}>
+            <input type="text" value={newCatNombre} onChange={(e) => setNewCatNombre(e.target.value)} placeholder="Nombre de categoria"
+              autoFocus className="w-full rounded-lg px-2 py-1.5 text-sm mb-2 outline-none" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--card)" }} />
+            <div className="flex gap-1.5 mb-2 flex-wrap">
+              {COLORES_CATEGORIA.map((color) => (
+                <button key={color} onClick={() => setNewCatColor(color)} className="w-6 h-6 rounded-full" style={{ background: color, border: newCatColor === color ? "3px solid var(--ink)" : "2px solid transparent" }} />
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowAddCat(false)} className="flex-1 text-xs font-semibold py-1.5 rounded-lg" style={{ color: "var(--ink-soft)", border: "1px solid var(--line)" }}>Cancelar</button>
+              <button onClick={handleAddCat} className="flex-1 text-xs font-bold py-1.5 rounded-lg" style={{ background: "var(--green)", color: "#fff" }}>Agregar</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setShowAddCat(true)} className="flex items-center gap-1 text-xs font-semibold mb-5 px-2 py-1" style={{ color: "var(--green)" }}>
+            <Plus size={14} /> Agregar categoria
+          </button>
+        )}
 
         <p className="text-xs font-bold mb-2" style={{ color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Tema</p>
         <div className="grid grid-cols-5 gap-2 mb-5">
@@ -1683,6 +1718,7 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
 function AppMain() {
   const { perfil, logout } = useAuth();
   const cuentaId = perfil?.cuenta_id;
+  const { money, weekStartOf, weekOf, weekLabel, loaded: cuentaLoaded } = useCuenta();
 
   const [sobres, setSobres] = useState([]);
   const [gastos, setGastos] = useState([]);
@@ -1721,13 +1757,13 @@ function AppMain() {
     }
     setLoading(false);
 
-    const result = await autoClose(sobresRes.data || [], gastosRes.data || [], cierresRes.data || [], cuentaId);
+    const result = await autoClose(sobresRes.data || [], gastosRes.data || [], cierresRes.data || [], cuentaId, weekStartOf, weekOf);
     if (result.nuevos.length > 0) {
       setCierres((prev) => [...prev, ...result.nuevos]);
       const { data: sa } = await supabase.from("sobres").select("*").eq("cuenta_id", cuentaId).eq("activo", true).order("orden");
       if (sa) setSobres(sa);
     }
-  }, [cuentaId]);
+  }, [cuentaId, weekStartOf, weekOf]);
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
 
@@ -1917,6 +1953,6 @@ function AppContent() {
   const { session, perfil, cargando } = useAuth();
   if (cargando) return <div className="min-h-screen flex items-center justify-center" style={{ background: "#F6F4ED" }}><div className="text-sm" style={{ color: "#5A6B85" }}>Cargando...</div></div>;
   if (!session) return <Login />;
-  if (!perfil) return <SetupPerfil />;
-  return <AppMain />;
+  if (!perfil) return <OnboardingWizard />;
+  return <CuentaProvider cuentaId={perfil.cuenta_id}><AppMain /></CuentaProvider>;
 }
