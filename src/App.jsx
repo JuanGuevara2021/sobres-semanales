@@ -614,7 +614,7 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
 
 /* ---------- Tab Sobres ---------- */
 function TabSobres({ sobres, gastos, cierres, presupSemanal, onSaveSobre, onDeleteSobre, onSavePresup, onConfigSaldos }) {
-  const { money, weekOf, categorias, catLabel, catColor } = useCuenta();
+  const { money, weekOf, weekLabel, fmtDia, categorias, catLabel, catColor } = useCuenta();
   const [editing, setEditing] = useState(null);
   const [nombre, setNombre] = useState("");
   const [emoji, setEmoji] = useState(EMOJIS[0]);
@@ -1384,19 +1384,33 @@ function TabAnalisis({ gastos, sobres, presupSemanal, onNavToWeek, inicioSobres 
   const [periodo, setPeriodo] = useState("semana");
   const [modoDia, setModoDia] = useState("monto");
   const [vistaTemp, setVistaTemp] = useState("semana");
+  const [rangoInicio, setRangoInicio] = useState("");
+  const [rangoFin, setRangoFin] = useState("");
 
   const hoy = new Date();
   const wsActual = toStr(weekStartOf(hoy));
   const gf = excluir ? gastos.filter((g) => g.categoria !== "tarjetas" && g.categoria !== "renta") : gastos;
 
-  const numSem = periodo === "semana" ? 1 : periodo === "2sem" ? 2 : periodo === "4sem" ? 4 : null;
   let gastosEnPeriodo;
-  if (numSem) {
-    const startWS = toStr(addDays(fromStr(wsActual), -(numSem - 1) * 7));
-    gastosEnPeriodo = gf.filter((g) => weekOf(g.fecha) >= startWS);
-  } else {
+  let periodoLabel = "";
+  if (periodo === "rango") {
+    const ri = rangoInicio || toStr(addDays(hoy, -30));
+    const rf = rangoFin || toStr(hoy);
+    gastosEnPeriodo = gf.filter((g) => g.fecha >= ri && g.fecha <= rf);
+    periodoLabel = `${fromStr(ri).getDate()} ${MESES[fromStr(ri).getMonth()]} – ${fromStr(rf).getDate()} ${MESES[fromStr(rf).getMonth()]}`;
+  } else if (periodo === "sem_pasada") {
+    const wsPasada = toStr(addDays(fromStr(wsActual), -7));
+    gastosEnPeriodo = gf.filter((g) => weekOf(g.fecha) === wsPasada);
+    periodoLabel = "semana pasada";
+  } else if (periodo === "mes") {
     const inicioMes = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-01`;
     gastosEnPeriodo = gf.filter((g) => g.fecha >= inicioMes);
+    periodoLabel = "este mes calendario";
+  } else {
+    const numSem = periodo === "semana" ? 1 : periodo === "2sem" ? 2 : 4;
+    const startWS = toStr(addDays(fromStr(wsActual), -(numSem - 1) * 7));
+    gastosEnPeriodo = gf.filter((g) => weekOf(g.fecha) >= startWS);
+    periodoLabel = numSem === 1 ? "esta semana" : `ultimas ${numSem} semanas`;
   }
   const totalPeriodo = gastosEnPeriodo.reduce((a, g) => a + Number(g.monto), 0);
 
@@ -1467,16 +1481,31 @@ function TabAnalisis({ gastos, sobres, presupSemanal, onNavToWeek, inicioSobres 
         </label>
       </div>
 
-      <div className="flex gap-1.5 mb-4">
-        {[["semana", "Semana"], ["2sem", "2 sem"], ["4sem", "4 sem"], ["mes", "Mes cal."]].map(([v, l]) => (
-          <button key={v} className="flex-1 text-xs font-semibold py-2 rounded-xl"
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {[["semana", "Esta sem"], ["sem_pasada", "Pasada"], ["2sem", "2 sem"], ["4sem", "4 sem"], ["mes", "Mes"], ["rango", "Rango"]].map(([v, l]) => (
+          <button key={v} className="text-xs font-semibold py-1.5 px-3 rounded-xl"
             style={periodo === v ? { background: "var(--ink)", color: "#fff" } : { background: "var(--card)", color: "var(--ink)", border: "1px solid var(--line)" }}
             onClick={() => setPeriodo(v)}>{l}</button>
         ))}
       </div>
 
+      {periodo === "rango" && (
+        <div className="flex gap-2 mb-3">
+          <div className="flex-1">
+            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: "var(--ink-soft)" }}>Desde</label>
+            <input type="date" value={rangoInicio || toStr(addDays(hoy, -30))} onChange={(e) => setRangoInicio(e.target.value)}
+              className="w-full rounded-lg px-2 py-1.5 text-xs outline-none" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }} />
+          </div>
+          <div className="flex-1">
+            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: "var(--ink-soft)" }}>Hasta</label>
+            <input type="date" value={rangoFin || toStr(hoy)} onChange={(e) => setRangoFin(e.target.value)}
+              className="w-full rounded-lg px-2 py-1.5 text-xs outline-none" style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }} />
+          </div>
+        </div>
+      )}
+
       <div className="rounded-xl p-3 mb-3 text-center" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
-        <div className="text-xs" style={{ color: "var(--ink-soft)" }}>Total {periodo === "semana" ? "esta semana" : periodo === "2sem" ? "ultimas 2 semanas" : periodo === "4sem" ? "ultimas 4 semanas" : "este mes calendario"}</div>
+        <div className="text-xs" style={{ color: "var(--ink-soft)" }}>Total {periodoLabel}</div>
         <div className="num text-2xl font-bold mt-0.5" style={{ color: "var(--ink)" }}>{money(totalPeriodo)}</div>
         <div className="text-xs" style={{ color: "var(--ink-soft)" }}>{gastosEnPeriodo.length} gasto{gastosEnPeriodo.length === 1 ? "" : "s"}</div>
       </div>
