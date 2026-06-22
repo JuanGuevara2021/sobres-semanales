@@ -2,21 +2,24 @@
 
 ## Que es este proyecto
 
-App de finanzas personales para 2 usuarios (Juan y una persona mas) que une dos metodos:
-la **libreta de gastos** (registro diario con categoria, medio de pago y monto) y la
-**cartera de sobres** (presupuesto semanal por concepto). Registrar un gasto descuenta
-automaticamente de su sobre. Al cerrar la semana, lo que sobra en sobres tipo `ahorro`
-pasa al sobre Ahorro; los sobres tipo `acumula` arrastran su saldo.
+App de finanzas personales que une dos metodos: la **libreta de gastos** (registro diario
+con categoria, medio de pago y monto) y la **cartera de sobres** (presupuesto semanal por
+concepto). Registrar un gasto descuenta automaticamente de su sobre. Al cerrar la semana,
+lo que sobra en sobres tipo `ahorro` pasa al sobre Ahorro; los tipo `acumula` arrastran saldo.
 
-Objetivo del usuario: que el ahorro sea el resultado automatico del sistema, no de la
-fuerza de voluntad a fin de mes.
+Objetivo: que el ahorro sea el resultado automatico del sistema, no de la fuerza de voluntad.
+
+La app es multi-usuario (cada "cuenta" puede compartirse entre 2 personas del hogar),
+multi-moneda (MXN, COP, ARS, PEN, CLP, USD), con categorias dinamicas y dia de inicio
+de semana configurable. Incluye tour de bienvenida, onboarding por plantillas, y PIN opcional.
 
 ## Stack y arquitectura (decisiones ya tomadas — no reabrir sin consultar a Juan)
 
 - **Frontend**: React + Vite. Punto de partida: `SobresSemanales.jsx` (prototipo funcional ya validado).
 - **Backend/datos**: Supabase (Postgres + Auth + Realtime), plan gratuito.
-- **Distribucion**: PWA desplegada en Vercel. NO Google Play, NO APK (por ahora; el codigo debe quedar envolvible con Capacitor en el futuro).
-- **Multiusuario**: una "cuenta" (hogar) compartida; 2 usuarios autenticados ven y editan los mismos datos desde dispositivos distintos, con sincronizacion en tiempo real.
+- **Distribucion**: PWA desplegada en Vercel. Proxima fase: empaquetar con Capacitor para Google Play.
+- **Multiusuario**: una "cuenta" (hogar) compartida; usuarios autenticados ven y editan los mismos datos desde dispositivos distintos, con sincronizacion en tiempo real.
+- **Configuracion dinamica**: `CuentaContext` provee moneda, dia de inicio, categorias, funciones de formato. Todo configurable por cuenta.
 
 ## Concepto clave: dos dimensiones independientes
 
@@ -28,23 +31,16 @@ Cada gasto tiene DOS clasificaciones que no se mezclan:
 | **Categoria**| Que tipo de gasto es?              | Analizar y entender  | Si, siempre |
 
 **Sobre** = mecanismo de presupuesto semanal. Puede ser un sobre especifico o "fuera de sobres".
-**Categoria** = clasificacion analitica. Siempre presente. Las 6 categorias fijas son:
+**Categoria** = clasificacion analitica. Siempre presente. Se crea un set de 6 categorias por defecto
+al registrar la cuenta, pero el usuario puede agregar o quitar desde Configuracion.
 
-| Categoria   | Que incluye |
-|-------------|-------------|
-| casa        | Despensa, limpieza, servicios del hogar, agua, ropa, muebles |
-| renta       | Pago mensual de vivienda |
-| diversion   | Entretenimiento, salidas, suscripciones, comida fuera por gusto |
-| salud       | Medicos, medicamentos, psicologos, laboratorios, suplementos |
-| escuela     | Colegiaturas, materiales, pasajes a escuela |
-| tarjetas    | Pagos de tarjetas de credito, prestamos, deudas |
-
-Estas 6 categorias son fijas (no editables por el usuario en v1). Si en el futuro se necesitan mas, se agregan en codigo.
+Categorias default: casa, renta, diversion, salud, escuela, tarjetas. Se almacenan en tabla
+`categorias` (dinamicas por cuenta), no como ENUM.
 
 ## Reglas de negocio v2.1 (criticas — cualquier cambio debe avisarse a Juan)
 
-1. **La semana va de sabado a viernes** y se calcula a partir de la fecha del gasto;
-   nunca se almacena como campo editable. Inicio de semana = sabado anterior o igual.
+1. **El dia de inicio de semana es configurable** (sabado, lunes o domingo) por cuenta.
+   Se calcula a partir de la fecha del gasto; nunca se almacena como campo editable.
 2. Cada sobre tiene un **tipo de cierre**:
    - `ahorro`: al cerrar la semana, el sobrante positivo pasa al sobre Ahorro y el sobre reinicia. Sobregiro NO descuenta del Ahorro.
    - `acumula`: el saldo se arrastra entre semanas. Disponible = `saldo_acumulado + aportacion_semanal - gastos_de_la_semana`.
@@ -56,21 +52,21 @@ Estas 6 categorias son fijas (no editables por el usuario en v1). Si en el futur
 6. **Categoria es obligatoria** en todos los gastos (con sobre o sin sobre). Cada sobre tiene una categoria por defecto que se auto-llena pero se puede cambiar.
 7. **Las estadisticas y graficas operan sobre categoria**, no sobre sobres. Esto da visibilidad completa del gasto real.
 8. **Medios de pago**: Efectivo, Debito, Credito, Transferencia.
-9. **Moneda**: MXN, formato `es-MX`.
+9. **Moneda**: configurable por cuenta (MXN, COP, ARS, PEN, CLP, USD). Formato via `Intl.NumberFormat`.
 10. Cambios de presupuesto aplican de la semana en curso en adelante; nunca al pasado.
 
-## Modelo de datos v2.1
+## Modelo de datos v3 (post Fase C1)
 
 ```
-categorias (enum):
-  'casa', 'renta', 'diversion', 'salud', 'escuela', 'tarjetas'
-
-cuentas    { id, nombre, presupuesto_semanal (default 3000) }
+cuentas    { id, nombre, presupuesto_semanal, moneda (text, default 'MXN'),
+             dia_inicio_semana (int 0-6, default 6), inicio_sobres }
 perfiles   { user_id (auth), cuenta_id, nombre, tema }
+
+categorias { id, cuenta_id, nombre, label, color, orden, activo }
 
 sobres     { id, cuenta_id, nombre, emoji, aportacion_semanal,
              tipo_cierre ('ahorro'|'acumula'), es_ahorro bool,
-             categoria_default (ref categorias),
+             categoria_default (text, ref categorias.nombre),
              saldo_acumulado, activo }
 
 tarjetas   { id, cuenta_id, nombre, banco, ultimos4,
@@ -79,7 +75,7 @@ tarjetas   { id, cuenta_id, nombre, banco, ultimos4,
 gastos     { id, cuenta_id, sobre_id NULL, usuario_id,
              fecha, monto, medio_pago,
              tarjeta_id NULL (ref tarjetas),
-             categoria (ref categorias, NOT NULL),
+             categoria (text, NOT NULL),
              nota, creado_en }
 
 cierres    { id, cuenta_id, semana,
@@ -87,33 +83,28 @@ cierres    { id, cuenta_id, semana,
              total_a_ahorro, cerrado_en }
 
 pagos_recurrentes  { id, cuenta_id, nombre, monto_estimado, dia_pago,
-                     destino_sobre_id NULL, categoria (NOT NULL),
-                     frecuencia ('semanal'|'quincenal'|'mensual', default 'mensual'),
-                     medio_pago (ref medio_pago_t, default 'debito'),
-                     tarjeta_id NULL (ref tarjetas),
-                     activo, pospuesto_hasta NULL, ultimo_pago NULL }
+                     destino_sobre_id NULL, categoria (text, NOT NULL),
+                     frecuencia ('semanal'|'quincenal'|'mensual'),
+                     medio_pago, tarjeta_id NULL, activo,
+                     pospuesto_hasta NULL, ultimo_pago NULL }
 
 compras_msi  { id, cuenta_id, concepto, monto_total, tarjeta,
-              tarjeta_id NULL (ref tarjetas),
-              num_meses, fecha_compra, mes_primer_pago,
-              dia_corte NULL, activo }
+              tarjeta_id NULL, num_meses, fecha_compra,
+              mes_primer_pago, dia_corte NULL, activo }
+
+plantillas_sobres  { id, plantilla, nombre, emoji, aportacion_semanal,
+                     tipo_cierre, es_ahorro, categoria_default, orden }
 ```
 
-## Sobres iniciales con categoria por defecto
+Nota: categorias pasaron de ENUM a tabla dinamica. La columna `categoria` en gastos/sobres/pagos
+es text (ya no referencia un ENUM). Plantillas: hogar_mexicano, estudiante, basico.
 
-| Sobre        | Aportacion/sem | Tipo    | Categoria default |
-|--------------|----------------|---------|--------------------|
-| Tianguis     | $500           | ahorro  | casa               |
-| Casa         | $200           | ahorro  | casa               |
-| Tienda UNAM  | $400           | ahorro  | casa               |
-| Walmart      | $400           | ahorro  | casa               |
-| Antojos      | $300           | ahorro  | diversion          |
-| Plataformas  | $500           | acumula | diversion          |
-| Servicios    | $200           | acumula | casa               |
-| Diversion    | $200           | acumula | diversion          |
-| Escuela      | $100           | acumula | escuela            |
-| Salud        | $100           | acumula | salud              |
-| Ahorro       | $100           | acumula + es_ahorro | casa    |
+## Plantillas de sobres (se eligen durante onboarding)
+
+Los sobres iniciales vienen de la tabla `plantillas_sobres`. Hay 3 plantillas:
+- **hogar_mexicano** (11 sobres) — para hogares con gastos variados
+- **estudiante** (6 sobres) — para estudiantes con presupuesto reducido
+- **basico** (4 sobres) — para quien quiere empezar simple
 
 ## Convenciones de trabajo
 

@@ -6,6 +6,7 @@ import { toStr, fromStr, addDays, MESES, DIAS, DIAS_INICIO_OPTIONS, COLORES_CATE
 import Login from "./components/Login";
 import OnboardingWizard from "./components/OnboardingWizard";
 import PinLock, { hasPin, isUnlocked, setPin, clearUnlock } from "./components/PinLock";
+import WelcomeTour, { needsTour, markTourDone } from "./components/WelcomeTour";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, ReferenceLine, CartesianGrid, LabelList,
@@ -1916,6 +1917,7 @@ function AppMain() {
   const [showPagoForm, setShowPagoForm] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [fondoCustom, setFondoCustom] = useState(() => localStorage.getItem("sobres_fondo") || "");
+  const [showTour, setShowTour] = useState(needsTour);
 
   const cargarDatos = useCallback(async () => {
     if (!cuentaId) return;
@@ -2046,6 +2048,7 @@ function AppMain() {
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: "#F6F4ED" }}><div className="text-sm" style={{ color: "#5A6B85" }}>Abriendo tu libreta...</div></div>;
+  if (showTour) return <WelcomeTour onDone={() => setShowTour(false)} />;
 
   const TABS = [
     { id: "semana", label: "Semana", Icon: Notebook },

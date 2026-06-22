@@ -96,13 +96,19 @@ export default function Login() {
             <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.15)" }} />
           </div>
 
-          <div className="flex justify-center gap-6 mt-3 mb-6">
+          <div className="flex justify-center gap-6 mt-3 mb-4">
             {[["🔒", "Encriptado"], ["📱", "Sincronizado"], ["💰", "Gratuito"]].map(([icon, label]) => (
               <div key={label} className="text-center">
                 <div className="text-lg">{icon}</div>
                 <div className="text-[10px] font-semibold mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{label}</div>
               </div>
             ))}
+          </div>
+
+          <div className="text-center mb-6">
+            <a href="/terminos.html" target="_blank" className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>Terminos de servicio</a>
+            <span className="mx-2 text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+            <a href="/privacidad.html" target="_blank" className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>Privacidad</a>
           </div>
         </div>
       </div>
