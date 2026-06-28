@@ -1957,6 +1957,38 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
             </div>
           )}
         </div>
+
+        <p className="text-xs font-bold mb-2 mt-5" style={{ color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Ayuda</p>
+        <div className="space-y-2">
+          <button onClick={() => {
+            const info = [
+              `App: Sobres Semanales v1.0.0`,
+              `Plataforma: ${navigator.userAgent}`,
+              `Pantalla: ${screen.width}x${screen.height}`,
+              `Fecha: ${new Date().toISOString()}`,
+            ].join("\n");
+            window.open(`mailto:soporte@sobressemanales.com?subject=${encodeURIComponent("Reporte de problema — Sobres Semanales")}&body=${encodeURIComponent("Describe el problema:\n\n\n\n--- Info del dispositivo ---\n" + info)}`);
+          }} className="w-full flex items-center gap-3 rounded-xl px-3 py-3" style={{ background: "var(--paper)", border: "1px solid var(--line)" }}>
+            <span className="text-lg">🐛</span>
+            <div className="text-left flex-1">
+              <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Reportar problema</div>
+              <div className="text-xs" style={{ color: "var(--ink-soft)" }}>Envianos un correo con los detalles</div>
+            </div>
+          </button>
+          <button onClick={() => {
+            window.open(`mailto:soporte@sobressemanales.com?subject=${encodeURIComponent("Sugerencia — Sobres Semanales")}&body=${encodeURIComponent("Me gustaria que la app...\n\n")}`);
+          }} className="w-full flex items-center gap-3 rounded-xl px-3 py-3" style={{ background: "var(--paper)", border: "1px solid var(--line)" }}>
+            <span className="text-lg">💡</span>
+            <div className="text-left flex-1">
+              <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Sugerir mejora</div>
+              <div className="text-xs" style={{ color: "var(--ink-soft)" }}>Cuentanos que te gustaria que agregemos</div>
+            </div>
+          </button>
+        </div>
+
+        <div className="text-center mt-6 mb-2">
+          <div className="text-[10px]" style={{ color: "var(--ink-soft)" }}>Sobres Semanales v1.0.0</div>
+        </div>
       </div>
     </div>
   );

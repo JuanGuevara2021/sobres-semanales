@@ -152,10 +152,10 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [ ] **[CC]** Implementar tier Pro: logica de suscripcion con Google Play Billing
 - [ ] **[CC]** Features Pro: sin anuncios, exportar gastos a CSV/Excel, temas extra
 
-#### Fase C5 — Feedback y bugs de usuarios
+#### Fase C5 — Feedback y bugs de usuarios (EN PROGRESO)
 
-- [ ] **[CC]** Boton "Reportar problema" en Ajustes (abre correo con info del dispositivo)
-- [ ] **[CC]** Boton "Sugerir mejora" en Ajustes (abre formulario simple)
+- [x] **[CC]** Boton "Reportar problema" en Ajustes (abre correo con info del dispositivo)
+- [x] **[CC]** Boton "Sugerir mejora" en Ajustes (abre correo prellenado)
 - [ ] **[JUAN]** Crear correo soporte@sobressemanales.com (puede ser alias de Gmail)
 - [ ] **[JUAN]** Crear correo privacidad@sobressemanales.com (puede ser alias de Gmail)
 - [ ] **[CC]** Integrar Firebase Crashlytics (deteccion automatica de crashes)
