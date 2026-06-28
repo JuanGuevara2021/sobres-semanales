@@ -1453,11 +1453,14 @@ function TabAnalisis({ gastos, sobres, tarjetas, presupSemanal, onNavToWeek, ini
     const inicioMes = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-01`;
     gastosEnPeriodo = gf.filter((g) => g.fecha >= inicioMes);
     periodoLabel = "este mes calendario";
+  } else if (periodo === "semana") {
+    gastosEnPeriodo = gf.filter((g) => weekOf(g.fecha) === wsActual);
+    periodoLabel = "esta semana";
   } else {
-    const numSem = periodo === "semana" ? 1 : periodo === "2sem" ? 2 : 4;
-    const startWS = toStr(addDays(fromStr(wsActual), -(numSem - 1) * 7));
-    gastosEnPeriodo = gf.filter((g) => weekOf(g.fecha) >= startWS);
-    periodoLabel = numSem === 1 ? "esta semana" : `ultimas ${numSem} semanas`;
+    const numSem = periodo === "2sem" ? 2 : 4;
+    const startWS = toStr(addDays(fromStr(wsActual), -numSem * 7));
+    gastosEnPeriodo = gf.filter((g) => { const ws = weekOf(g.fecha); return ws >= startWS && ws < wsActual; });
+    periodoLabel = `${numSem} semanas previas`;
   }
   const totalPeriodo = gastosEnPeriodo.reduce((a, g) => a + Number(g.monto), 0);
 
