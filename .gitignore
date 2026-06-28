@@ -28,3 +28,4 @@ android/app/release/
 *.aab
 *.keystore
 *.jks
+android/keystore.properties

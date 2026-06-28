@@ -7,6 +7,8 @@ import Login from "./components/Login";
 import OnboardingWizard from "./components/OnboardingWizard";
 import PinLock, { hasPin, isUnlocked, setPin, clearUnlock } from "./components/PinLock";
 import WelcomeTour, { needsTour, markTourDone } from "./components/WelcomeTour";
+import { esPublica } from "./lib/appMode";
+import { getTabsVisibles, calcPilarSugerido, getTransicion } from "./lib/pilares";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, ReferenceLine, CartesianGrid, LabelList,
@@ -203,6 +205,46 @@ async function autoClose(sobres, gastos, cierresExistentes, cuentaId, weekStartO
 }
 
 /* ============================================================
+   Pilares — transicion y guia
+   ============================================================ */
+
+function PilarTransicion({ transicion, onContinuar }) {
+  if (!transicion) return null;
+  return (
+    <div className={`fixed inset-0 z-50 flex items-center justify-center px-6 md3-sheet-backdrop"`}>
+      <div className="w-full max-w-sm p-6 text-center md3-card" style={{ background: "var(--card)", borderRadius: "28px" }}>
+        <div className="text-5xl mb-3">{transicion.emoji}</div>
+        <h2 className="text-xl font-extrabold mb-2" style={{ color: "var(--ink)" }}>{transicion.titulo}</h2>
+        <p className="text-sm leading-relaxed mb-5" style={{ color: "var(--ink-soft)" }}>{transicion.mensaje}</p>
+        <button onClick={onContinuar} className="w-full py-3 font-bold text-sm md3-btn-filled" style={{ background: "var(--green)", color: "#fff", borderRadius: "20px" }}>
+          {transicion.boton}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GuiaPilar1({ gastosCount, onAvanzar }) {
+  return (
+    <div className="rounded-2xl p-4 mb-3" style={{ background: "var(--green)", color: "#fff" }}>
+      <div className="text-sm font-bold mb-1">Registra tus gastos</div>
+      <p className="text-xs mb-3" style={{ color: "rgba(255,255,255,.8)" }}>
+        Cada vez que gastes algo, anotalo aqui. El sobre se descuenta solo.
+        {gastosCount < 3 && ` Llevas ${gastosCount} de 3 para desbloquear mas.`}
+      </p>
+      <div className="flex gap-1 mb-2">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex-1 h-1.5 rounded-full" style={{ background: i < gastosCount ? "#fff" : "rgba(255,255,255,.3)" }} />
+        ))}
+      </div>
+      <button onClick={onAvanzar} className="text-xs font-semibold underline" style={{ color: "rgba(255,255,255,.75)" }}>
+        Ya se como funciona, avanzar
+      </button>
+    </div>
+  );
+}
+
+/* ============================================================
    Componentes
    ============================================================ */
 
@@ -281,8 +323,9 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClo
   };
 
   return (
-    <div className="fixed inset-0 z-30 flex items-end justify-center" style={{ background: "rgba(34,50,74,.45)" }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-t-2xl p-4 pb-6 overflow-y-auto" style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
+    <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop"`} onClick={onClose}>
+      <div className={`w-full max-w-md p-4 pb-6 overflow-y-auto md3-sheet"`} style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
+        <div className="md3-drag-handle" />
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>{isEdit ? "Modificar gasto" : "Registrar gasto"}</h2>
           <button className="text-sm px-2 py-1" style={{ color: "var(--ink-soft)" }} onClick={onClose}>Cerrar</button>
@@ -361,7 +404,7 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClo
           </div>
         </div>
         {error && <div className="text-xs mb-2" style={{ color: "var(--red)" }}>{error}</div>}
-        <button onClick={submit} disabled={guardando} className="w-full rounded-xl py-3 font-bold text-sm"
+        <button onClick={submit} disabled={guardando} className={`w-full py-3 font-bold text-sm md3-btn-filled"`}
           style={{ background: "var(--green)", color: "#fff", opacity: guardando ? 0.6 : 1 }}>
           {guardando ? "Guardando..." : isEdit ? "Guardar cambios" : "Guardar gasto"}
         </button>
@@ -387,8 +430,9 @@ function ConfigSaldosModal({ sobres, onSave, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-30 flex items-end justify-center" style={{ background: "rgba(34,50,74,.45)" }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-t-2xl p-4 pb-6 overflow-y-auto" style={{ background: "var(--card)", maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()}>
+    <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop"`} onClick={onClose}>
+      <div className={`w-full max-w-md p-4 pb-6 overflow-y-auto md3-sheet"`} style={{ background: "var(--card)", maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()}>
+        <div className="md3-drag-handle" />
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>Configurar saldos</h2>
           <button className="text-sm px-2 py-1" style={{ color: "var(--ink-soft)" }} onClick={onClose}>Cerrar</button>
@@ -408,7 +452,7 @@ function ConfigSaldosModal({ sobres, onSave, onClose }) {
               style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }} />
           </div>
         ))}
-        <button onClick={submit} disabled={guardando} className="w-full rounded-xl py-3 font-bold text-sm mt-3"
+        <button onClick={submit} disabled={guardando} className={`w-full py-3 font-bold text-sm mt-3 md3-btn-filled"`}
           style={{ background: "var(--green)", color: "#fff", opacity: guardando ? 0.6 : 1 }}>
           {guardando ? "Guardando..." : "Guardar saldos"}
         </button>
@@ -563,8 +607,8 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
         })}
       </div>
 
-      <button onClick={() => setShowForm(true)} className="w-full rounded-xl py-3 font-bold text-sm mb-4" style={{ background: "var(--green)", color: "#fff" }}>
-        + Registrar gasto
+      <button onClick={() => setShowForm(true)} className="md3-fab">
+        <Plus size={24} />
       </button>
 
       {/* Libreta con filtro */}
@@ -593,7 +637,7 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
             const tc = tarjetaDe(g.tarjeta_id);
             const cc = catColor[g.categoria] || "#666";
             return (
-              <div key={g.id} className="flex items-center gap-2 rounded-xl px-3 py-2 mb-1" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+              <div key={g.id} className="flex items-center gap-2 px-3 py-2 mb-1 md3-card" style={{ borderRadius: "16px" }}>
                 <span>{s ? s.emoji : "🚫"}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -764,7 +808,7 @@ function TabSobres({ sobres, gastos, cierres, presupSemanal, onSaveSobre, onDele
       ))}
 
       {editing === "nuevo" ? formRow : (
-        <button onClick={startNew} className="w-full rounded-xl py-2.5 text-sm font-bold mt-1" style={{ border: "1.5px dashed var(--ink-soft)", color: "var(--ink)" }}>+ Agregar sobre</button>
+        <button onClick={startNew} className="w-full rounded-xl py-2.5 text-sm font-bold mt-1" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)", borderRadius: "20px" }}>+ Agregar sobre</button>
       )}
       <p className="text-xs mt-4 mb-6 leading-relaxed" style={{ color: "var(--ink-soft)" }}>
         🐷 El sobre Ahorro recibe automaticamente lo que sobra de los sobres tipo "ahorro". Los tipo "acumula" arrastran su saldo.
@@ -918,7 +962,7 @@ function TabLibreta({ sobres, gastos, tarjetas, onEditGasto, onDelete }) {
             const tc = tarjetaDe(g.tarjeta_id);
             const cc = catColor[g.categoria] || "#666";
             return (
-              <div key={g.id} className="flex items-center gap-2 rounded-xl px-3 py-2 mb-1" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
+              <div key={g.id} className="flex items-center gap-2 px-3 py-2 mb-1 md3-card" style={{ borderRadius: "16px" }}>
                 <span>{s ? s.emoji : "🚫"}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -1132,7 +1176,7 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
         );
       })}
       {editTarjeta === "nuevo" && tarjetaForm()}
-      {editTarjeta !== "nuevo" && <button onClick={startNewTarjeta} className="w-full rounded-xl py-2 text-sm font-bold mt-1 mb-6" style={{ border: "1.5px dashed var(--ink-soft)", color: "var(--ink)" }}>+ Agregar tarjeta</button>}
+      {editTarjeta !== "nuevo" && <button onClick={startNewTarjeta} className="w-full rounded-xl py-2 text-sm font-bold mt-1 mb-6" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)", borderRadius: "20px" }}>+ Agregar tarjeta</button>}
 
       {/* === PAGOS RECURRENTES (sin tarjetas) === */}
       <h2 className="text-base font-bold mb-1" style={{ color: "var(--ink)" }}>🔄 Pagos recurrentes</h2>
@@ -1166,7 +1210,7 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
           </div>
         </div>
       ))}
-      <button onClick={startNewPago} className="w-full rounded-xl py-2 text-sm font-bold mt-1 mb-6" style={{ border: "1.5px dashed var(--ink-soft)", color: "var(--ink)" }}>+ Agregar pago</button>
+      <button onClick={startNewPago} className="w-full rounded-xl py-2 text-sm font-bold mt-1 mb-6" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)", borderRadius: "20px" }}>+ Agregar pago</button>
       {editing && pagoForm()}
 
       {/* === COMPRAS MSI === */}
@@ -1209,14 +1253,15 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
         );
       })}
       {editMSI === "nuevo" && msiForm()}
-      {editMSI !== "nuevo" && <button onClick={startNewMSI} className="w-full rounded-xl py-2 text-sm font-bold mt-1" style={{ border: "1.5px dashed var(--ink-soft)", color: "var(--ink)" }}>+ Agregar compra MSI</button>}
+      {editMSI !== "nuevo" && <button onClick={startNewMSI} className="w-full rounded-xl py-2 text-sm font-bold mt-1" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)", borderRadius: "20px" }}>+ Agregar compra MSI</button>}
     </div>
   );
 
   function tarjetaForm() {
     return (
-      <div className="fixed inset-0 z-30 flex items-end justify-center" style={{ background: "rgba(34,50,74,.45)" }} onClick={() => setEditTarjeta(null)}>
-        <div className="w-full max-w-md rounded-t-2xl p-4 pb-6 overflow-y-auto" style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
+      <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop"`} onClick={() => setEditTarjeta(null)}>
+        <div className={`w-full max-w-md p-4 pb-6 overflow-y-auto md3-sheet"`} style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
+          <div className="md3-drag-handle" />
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>{editTarjeta === "nuevo" ? "Nueva tarjeta" : "Editar tarjeta"}</h2>
             <button className="text-sm px-2 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => setEditTarjeta(null)}>Cerrar</button>
@@ -1260,8 +1305,9 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
 
   function pagoForm() {
     return (
-      <div className="fixed inset-0 z-30 flex items-end justify-center" style={{ background: "rgba(34,50,74,.45)" }} onClick={() => setEditing(null)}>
-        <div className="w-full max-w-md rounded-t-2xl p-4 pb-6 overflow-y-auto" style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
+      <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop"`} onClick={() => setEditing(null)}>
+        <div className={`w-full max-w-md p-4 pb-6 overflow-y-auto md3-sheet"`} style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
+          <div className="md3-drag-handle" />
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>{editing === "nuevo" ? "Nuevo pago recurrente" : "Editar pago recurrente"}</h2>
             <button className="text-sm px-2 py-1" style={{ color: "var(--ink-soft)" }} onClick={() => setEditing(null)}>Cerrar</button>
@@ -1378,7 +1424,7 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
           )}
 
           {msg && <div className="text-xs mb-2" style={{ color: "var(--red)" }}>{msg}</div>}
-          <button onClick={savePago} className="w-full rounded-xl py-3 font-bold text-sm"
+          <button onClick={savePago} className={`w-full py-3 font-bold text-sm md3-btn-filled"`}
             style={{ background: "var(--green)", color: "#fff" }}>
             {editing === "nuevo" ? "Agregar pago" : "Guardar cambios"}
           </button>
@@ -1787,8 +1833,9 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
   };
 
   return (
-    <div className="fixed inset-0 z-30 flex items-end justify-center" style={{ background: "rgba(34,50,74,.45)" }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-t-2xl p-4 pb-6 overflow-y-auto" style={{ background: "var(--card)", maxHeight: "80vh" }} onClick={(e) => e.stopPropagation()}>
+    <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop"`} onClick={onClose}>
+      <div className={`w-full max-w-md p-4 pb-6 overflow-y-auto md3-sheet"`} style={{ background: "var(--card)", maxHeight: "80vh" }} onClick={(e) => e.stopPropagation()}>
+        <div className="md3-drag-handle" />
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-extrabold" style={{ color: "var(--ink)" }}>Ajustes</h2>
           <button className="text-sm px-2 py-1 font-semibold" style={{ color: "var(--ink-soft)" }} onClick={onClose}>Cerrar</button>
@@ -1939,6 +1986,8 @@ function AppMain() {
   const [showSettings, setShowSettings] = useState(false);
   const [fondoCustom, setFondoCustom] = useState(() => localStorage.getItem("sobres_fondo") || "");
   const [showTour, setShowTour] = useState(needsTour);
+  const [pilar, setPilar] = useState(esPublica ? (perfil?.pilar_actual || 1) : 4);
+  const [showTransicion, setShowTransicion] = useState(null);
 
   const cargarDatos = useCallback(async () => {
     if (!cuentaId) return;
@@ -1987,6 +2036,30 @@ function AppMain() {
       .subscribe();
     return () => supabase.removeChannel(channel);
   }, [cuentaId]);
+
+  // --- Pilares: avance automatico ---
+  const semanasConGastos = new Set(gastos.map((g) => weekOf(g.fecha))).size;
+  const avanzarPilar = useCallback(async (nuevoPilar) => {
+    if (nuevoPilar <= pilar || !esPublica) return;
+    setPilar(nuevoPilar);
+    setShowTransicion(getTransicion(nuevoPilar));
+    await supabase.from("perfiles").update({ pilar_actual: nuevoPilar }).eq("user_id", perfil.user_id);
+  }, [pilar, perfil?.user_id]);
+
+  const avanzarManual = useCallback(() => {
+    avanzarPilar(Math.min(pilar + 1, 4));
+  }, [pilar, avanzarPilar]);
+
+  useEffect(() => {
+    if (!esPublica || loading) return;
+    const sugerido = calcPilarSugerido(pilar, gastos.length, cierres.length, semanasConGastos);
+    if (sugerido > pilar) avanzarPilar(sugerido);
+  }, [gastos.length, cierres.length, semanasConGastos, pilar, loading, avanzarPilar]);
+
+  useEffect(() => {
+    const visibles = getTabsVisibles(pilar);
+    if (!visibles.includes(tab)) setTab("semana");
+  }, [pilar, tab]);
 
   const addGasto = async (gasto) => { const { error } = await supabase.from("gastos").insert({ ...gasto, cuenta_id: cuentaId, usuario_id: perfil.user_id }); if (error) throw error; };
   const deleteGasto = async (id) => {
@@ -2071,20 +2144,22 @@ function AppMain() {
   if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: "#F6F4ED" }}><div className="text-sm" style={{ color: "#5A6B85" }}>Abriendo tu libreta...</div></div>;
   if (showTour) return <WelcomeTour onDone={() => setShowTour(false)} />;
 
-  const TABS = [
+  const ALL_TABS = [
     { id: "semana", label: "Semana", Icon: Notebook },
     { id: "libreta", label: "Libreta", Icon: BookOpen },
     { id: "sobres", label: "Sobres", Icon: Mail },
     { id: "pagos", label: "Pagos", Icon: CreditCard },
     { id: "analisis", label: "Analisis", Icon: BarChart3 },
   ];
+  const tabsVisibles = getTabsVisibles(pilar);
+  const TABS = ALL_TABS.filter((t) => tabsVisibles.includes(t.id));
 
   const temaObj = TEMAS[tema] || TEMAS.claro;
   const hoy = new Date();
   const viewedWS = toStr(addDays(weekStartOf(hoy), offset * 7));
 
   return (
-    <div className={`app-root min-h-screen${fondoCustom ? " has-bg" : ""}`} style={{
+    <div className={`app-root md3 min-h-screen${fondoCustom ? " has-bg" : ""}`} style={{
       "--paper": temaObj.paper, "--line": temaObj.line, "--card": temaObj.card,
       "--ink": temaObj.ink, "--ink-soft": temaObj.inkSoft, "--green": temaObj.green,
       "--amber": temaObj.amber, "--red": temaObj.red, "--flap": temaObj.flap,
@@ -2102,6 +2177,38 @@ function AppMain() {
         input::placeholder { color: #9AA6B8; }
         .has-bg .content-glass { background: color-mix(in srgb, var(--paper) 80%, transparent); backdrop-filter: blur(16px) saturate(1.3); border-radius: 20px; padding: 16px; margin: -16px; margin-bottom: 0; }
         @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+        /* === Material Design 3 overrides (solo version publica) === */
+        .md3 .sobre-card { border: none; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06); }
+        .md3 .sobre-flap { height: 11px; border-radius: 0 0 50% 50% / 0 0 100% 100%; clip-path: none; }
+        .md3 .chip { border: none; border-radius: 8px; background: color-mix(in srgb, var(--ink) 8%, transparent); font-weight: 600; padding: 7px 14px; }
+        .md3 .chip:active { transform: scale(0.96); }
+        .md3 .nav-arrow { border: none; border-radius: 12px; background: color-mix(in srgb, var(--ink) 6%, transparent); }
+        .md3 input, .md3 select { border-radius: 12px !important; }
+        .md3 .md3-card { background: var(--card); border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06); border: none; }
+
+        /* MD3 Nav bar */
+        .md3-nav { border-top: none !important; box-shadow: 0 -1px 6px rgba(0,0,0,.06); }
+        .md3-nav-item { position: relative; gap: 2px; }
+        .md3-nav-pill { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); width: 0; height: 28px; border-radius: 14px; background: color-mix(in srgb, var(--green) 16%, transparent); transition: width .25s cubic-bezier(.2,0,0,1); }
+        .md3-nav-item.active .md3-nav-pill { width: 56px; }
+        .md3-nav-item .md3-nav-icon { position: relative; z-index: 1; }
+
+        /* MD3 FAB */
+        .md3-fab { position: fixed; bottom: 88px; right: max(16px, calc(50% - 224px + 16px)); z-index: 15; width: 56px; height: 56px; border-radius: 16px; background: var(--green); color: #fff; border: none; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(0,0,0,.2), 0 1px 3px rgba(0,0,0,.1); transition: transform .15s, box-shadow .15s; cursor: pointer; }
+        .md3-fab:active { transform: scale(0.94); box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+
+        /* MD3 Bottom sheet */
+        .md3-sheet-backdrop { background: rgba(0,0,0,.32) !important; }
+        .md3-sheet { border-radius: 28px 28px 0 0 !important; animation: md3SlideUp .3s cubic-bezier(.2,0,0,1); }
+        .md3-drag-handle { width: 32px; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--ink) 25%, transparent); margin: 10px auto 6px; }
+        @keyframes md3SlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        /* MD3 buttons */
+        .md3 .md3-btn-filled { border: none; border-radius: 20px; font-weight: 600; letter-spacing: .01em; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+        .md3 .md3-btn-filled:active { box-shadow: none; transform: scale(0.98); }
+        .md3 .md3-btn-tonal { border: none; border-radius: 20px; background: color-mix(in srgb, var(--green) 12%, transparent); color: var(--green); font-weight: 600; }
+        .md3 .md3-btn-outlined { background: transparent; border: 1px solid var(--line); border-radius: 20px; font-weight: 600; }
       `}</style>
 
       <div className="max-w-md mx-auto px-4 pt-5 pb-28">
@@ -2111,16 +2218,20 @@ function AppMain() {
             <p className="text-xs" style={{ color: "var(--ink-soft)" }}>Hola, {perfil?.nombre}</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setShowSettings(true)} className="flex items-center justify-center w-8 h-8 rounded-lg" style={{ color: "var(--ink-soft)", border: "1px solid var(--line)", background: "var(--card)" }}>
+            <button onClick={() => setShowSettings(true)} className="flex items-center justify-center w-8 h-8 rounded-xl" style={{ color: "var(--ink-soft)", background: "color-mix(in srgb, var(--ink) 6%, transparent)" }}>
               <Settings size={16} />
             </button>
-            <button onClick={logout} className="flex items-center justify-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ color: "var(--ink-soft)", border: "1px solid var(--line)", background: "var(--card)" }}>
+            <button onClick={logout} className="flex items-center justify-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-xl" style={{ color: "var(--ink-soft)", background: "color-mix(in srgb, var(--ink) 6%, transparent)" }}>
               <LogOut size={13} /> Salir
             </button>
           </div>
         </header>
 
         {err && <div className="text-xs rounded-xl px-3 py-2 mb-3" style={{ background: "#FBEAE5", color: "var(--red)" }}>{err}</div>}
+
+        {esPublica && pilar === 1 && tab === "semana" && (
+          <GuiaPilar1 gastosCount={gastos.length} onAvanzar={avanzarManual} />
+        )}
 
         {tab === "semana" && <TabSemana sobres={sobres} gastos={gastos} cierres={cierres} pagos={pagos} tarjetas={tarjetas} msi={msi} presupSemanal={presupSemanal} offset={offset} setOffset={setOffset} onAdd={addGasto} onDelete={deleteGasto} onEditGasto={editGasto} onPagar={pagarRecurrente} onPosponer={posponerPago} onPagarTarjeta={pagarTarjeta} />}
         {tab === "libreta" && <TabLibreta sobres={sobres} gastos={gastos} tarjetas={tarjetas} onEditGasto={editGasto} onDelete={deleteGasto} />}
@@ -2132,11 +2243,18 @@ function AppMain() {
       {showPagoForm && <GastoForm sobres={sobres} tarjetas={tarjetas} viewedWS={viewedWS} isCurrent={true} onAdd={confirmarPago} onClose={() => setShowPagoForm(null)} prefill={showPagoForm} />}
       {showSettings && <SettingsPanel tema={tema} onChangeTema={cambiarTema} fondoCustom={fondoCustom} onChangeFondo={cambiarFondo} onClose={() => setShowSettings(false)} />}
 
-      <nav className="fixed bottom-0 left-0 right-0 z-20" style={{ background: fondoCustom ? `${temaObj.card}CC` : `${temaObj.card}EE`, borderTop: "1px solid var(--line)", backdropFilter: fondoCustom ? "blur(16px) saturate(1.4)" : "blur(6px)" }}>
+      <PilarTransicion transicion={showTransicion} onContinuar={() => {
+        const destino = showTransicion?.tabDestino;
+        setShowTransicion(null);
+        if (destino && tabsVisibles.includes(destino)) setTab(destino);
+      }} />
+
+      <nav className="fixed bottom-0 left-0 right-0 z-20 md3-nav" style={{ background: fondoCustom ? `${temaObj.card}CC` : `${temaObj.card}EE`, backdropFilter: fondoCustom ? "blur(16px) saturate(1.4)" : "blur(6px)" }}>
         <div className="max-w-md mx-auto flex">
           {TABS.map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)} className="flex-1 py-2.5 flex flex-col items-center" style={{ color: tab === t.id ? "var(--ink)" : "var(--ink-soft)" }}>
-              <t.Icon size={20} strokeWidth={tab === t.id ? 2.2 : 1.5} />
+            <button key={t.id} onClick={() => setTab(t.id)} className={`flex-1 py-2.5 flex flex-col items-center md3-nav-item${tab === t.id ? " active" : ""}`} style={{ color: tab === t.id ? "var(--ink)" : "var(--ink-soft)" }}>
+              <div className="md3-nav-pill" />
+              <span className="md3-nav-icon"><t.Icon size={20} strokeWidth={tab === t.id ? 2.2 : 1.5} /></span>
               <div className="text-[10px] font-semibold mt-0.5">{t.label}</div>
             </button>
           ))}

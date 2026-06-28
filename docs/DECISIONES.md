@@ -142,3 +142,65 @@ sobres normales, ocupando ancho completo con solapa verde.
 **Por que**: Juan queria visibilidad del ahorro en su flujo diario (vista semanal) sin tener
 que cambiar de pestana. El ancho completo y la solapa verde lo distinguen de los sobres
 normales.
+
+## 2026-06-28 — Sistema de pilares para onboarding progresivo
+
+**Decision**: la version publica usa 4 pilares que desbloquean funcionalidad por logros
+reales (no por tiempo). Pilar 1: Registrar (3 gastos). Pilar 2: Sobres (1 semana).
+Pilar 3: Ahorro (1er cierre). Pilar 4: Dominio (2+ semanas). El usuario siempre puede
+avanzar manualmente. Los anuncios escalan con los pilares (0 -> banner -> banner+interstitial).
+La version personal ignora los pilares.
+
+**Alternativas consideradas**:
+- Desbloqueo por dias: no funciona porque el usuario puede no abrir la app diario.
+- Desbloqueo solo manual: el usuario da clic sin leer y no aprende.
+- Todo visible desde el inicio: abruma al usuario nuevo.
+
+**Por que**: el usuario necesita demostrar que entendio cada paso antes de ver el siguiente.
+Los logros reales (registrar gastos, completar una semana) son mejor indicador que el tiempo.
+La opcion manual respeta al usuario que ya sabe que hacer. Ver `docs/PILARES_ONBOARDING.md`.
+
+## 2026-06-28 — Look Material Design 3 para version publica
+
+**Decision**: la version publica adopta el estilo visual Material Design 3 (Material You)
+de Google para sentirse nativa en Android. La version personal mantiene el diseño actual.
+
+**Alternativas consideradas**:
+- Mantener el diseño actual para ambas: no se siente nativa en Android.
+- Usar una libreria de componentes MD3 (ej: MUI): demasiado peso para una app Capacitor.
+- Implementar MD3 manualmente con CSS: ligero, controlable, suficiente para el look.
+
+**Por que**: los usuarios de Android esperan que las apps se vean como apps nativas de Google.
+Material Design 3 tiene bordes redondeados, elevaciones sutiles, tipografia Roboto, y
+una paleta derivada de un color semilla — el estilo que los usuarios de Android reconocen
+y confian. No necesitamos una libreria completa, solo adoptar los tokens de diseno.
+
+## 2026-06-28 — Dos versiones de la app: personal y publica
+
+**Decision**: mantener dos versiones de la app desde el mismo codigo fuente:
+- **Personal** (la actual): sin anuncios, sin suscripcion, para uso de Juan
+- **Publica** (Google Play): con AdMob, suscripcion Pro, onboarding simplificado para nuevos usuarios
+
+Se controla con variable de entorno `VITE_APP_MODE`:
+- `personal` → sin ads, sin paywall, features completas
+- `public` → con ads (usuarios gratis), suscripcion Pro, tour guiado mas detallado
+
+**Alternativas consideradas**:
+- Dos repos separados: duplica el trabajo de mantenimiento, los bug fixes hay que aplicarlos dos veces.
+- Una sola version con suscripcion donde Juan sea admin: mas complejo de implementar y Juan perderia
+  la version limpia sin anuncios.
+
+**Por que**: Juan quiere seguir usando la app como esta (sin anuncios ni restricciones) mientras
+la version publica tiene monetizacion. Un solo codigo con un flag de entorno es lo mas simple
+de mantener — las features base son identicas, solo cambian los componentes de ads y paywall.
+
+## 2026-06-28 — Google AdMob como plataforma de anuncios
+
+**Decision**: usar Google AdMob para la monetizacion por publicidad. Plugin de Capacitor
+(`@capacitor-community/admob`). Tres formatos: banner (fijo), interstitial (pantalla completa
+en momentos naturales), rewarded (opcional, usuario decide ver).
+
+**Por que**: AdMob es el estandar de facto para apps Android, se integra directamente con
+Google Play, tiene el mayor inventario de anunciantes para LATAM, y hay plugin de Capacitor
+mantenido. La alternativa (mediacion con redes como Unity Ads, Meta, etc.) se implementaria
+en Fase C6 si el volumen lo justifica.

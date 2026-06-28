@@ -196,10 +196,41 @@ El eCPM sube a ~$3.50-$5 USD (2-3x sobre generico):
 
 ### Fase C4 — Monetizacion base (2-4 semanas)
 
-- [ ] Integrar Google AdMob (banners discretos + interstitials entre acciones)
+- [ ] Crear cuenta en Google AdMob (admob.google.com, gratis)
+- [ ] Instalar plugin Capacitor para AdMob (`@capacitor-community/admob`)
+- [ ] Configurar banner fijo (abajo de contenido, arriba de nav)
+- [ ] Configurar interstitial en momentos naturales (despues de cerrar semana, al volver de ajustes)
 - [ ] Implementar tier Pro: logica de suscripcion con Google Play Billing
 - [ ] Features Pro: sin anuncios, exportar gastos a CSV/Excel, temas extra, graficas avanzadas
 - [ ] Paywall suave: la app funciona completa gratis, Pro es mejora de experiencia
+- [ ] Condicionar ads: `if (!usuario.esPro) { mostrar anuncios }`
+
+#### Reglas de implementacion de anuncios (NO violar)
+
+1. **Nunca mostrar interstitial mientras el usuario registra un gasto** — interrumpir la accion principal causa desinstalaciones
+2. **Maximo 1 interstitial cada 2-3 minutos** — demasiados anuncios = mala resena = menos descargas
+3. **Nunca hacer clic en tus propios anuncios** — Google banea la cuenta permanentemente
+4. **No poner anuncios donde el usuario pueda hacer clic sin querer** — Google penaliza (ej: no poner un banner justo debajo de un boton frecuente)
+5. **Usar ads de prueba (test IDs) durante desarrollo** — los ads reales en modo debug tambien causan ban
+
+#### Detalles tecnicos de AdMob
+
+| Concepto | Detalle |
+|----------|---------|
+| Comision de Google | ~32% (tu recibes ~68% del ingreso por anuncios) |
+| Pago minimo | $100 USD acumulados para que Google te deposite |
+| Frecuencia de pago | Mensual, por transferencia bancaria |
+| eCPM banner LATAM | ~$0.15 USD por 1,000 impresiones |
+| eCPM interstitial LATAM | ~$1.50-$1.90 USD por 1,000 impresiones |
+| eCPM rewarded LATAM | ~$2-4 USD por 1,000 impresiones |
+
+#### Formatos de anuncio a implementar
+
+| Formato | Donde | Cuando | Pago |
+|---------|-------|--------|------|
+| **Banner** | Tira fija abajo del contenido, arriba de nav | Siempre visible (usuarios gratis) | Bajo pero constante |
+| **Interstitial** | Pantalla completa | Despues de cerrar semana, al volver de ajustes | Medio, ~$1.70/1000 |
+| **Rewarded** (fase 2) | El usuario elige verlo | "Mira un anuncio para probar analisis extendido" | Alto, ~$3/1000 |
 
 ### Fase C5 — Crecimiento organico (continuo desde mes 3)
 
@@ -210,10 +241,68 @@ El eCPM sube a ~$3.50-$5 USD (2-3x sobre generico):
 
 ### Fase C6 — Publicidad personalizada (mes 6-12)
 
-- [ ] Implementar segmentacion por categoria de gasto (anonimizada)
+- [ ] Implementar `perfilParaAds()`: calcula categoria top, nivel de gasto, uso de tarjetas
+- [ ] Enviar custom signals a AdMob en cada request de anuncio (categoria_top, nivel_gasto, tiene_tarjetas, pais)
+- [ ] NUNCA enviar montos, notas, ni datos personales — solo señales anonimizadas
 - [ ] Integrar red de ads que soporte segmentos (AdMob con mediacion o similar)
 - [ ] A/B testing de formatos y frecuencia de ads para no afectar retencion
 - [ ] Medir eCPM real vs generico y ajustar estrategia
+- [ ] Con 50k+ usuarios: explorar venta directa de ads a marcas (Walmart, farmacias, etc.)
+
+#### Estrategia de ads personalizados por contexto de gasto
+
+La ventaja competitiva de Sobres Semanales es que sabe EN QUE gasta el usuario.
+Esto permite enviar custom signals a AdMob para que muestre anuncios mas relevantes,
+lo que sube el eCPM de ~$1.70 a ~$3.50 (2x).
+
+**3 niveles de personalizacion:**
+
+| Nivel | Que es | Cuando | eCPM estimado |
+|-------|--------|--------|:-------------:|
+| 1. AdMob generico | Google decide que mostrar por IP/historial | Desde el inicio | ~$1.70 |
+| 2. Custom signals | Le mandamos categoria_top, nivel_gasto, tiene_tarjetas | Mes 6-12 | ~$3.50 |
+| 3. Ads directos | Vender banners a marcas especificas por categoria | Con 50k+ usuarios | ~$8-15 |
+
+**Señales que se envian (anonimizadas, sin datos personales):**
+
+```
+categoria_top: "casa"|"diversion"|"salud"|"tarjetas"|etc.  (donde mas gasta, ultimos 30 dias)
+nivel_gasto:   "bajo"|"medio"|"alto"                       (< $4k / $4k-$8k / > $8k mensual)
+tiene_tarjetas: "si"|"no"                                  (usa medio credito?)
+pais:          "MX"|"CO"|"AR"|etc.                         (del perfil de moneda)
+```
+
+**Ejemplos de segmentacion:**
+
+| Señal | Anuncios que aparecerian |
+|-------|--------------------------|
+| categoria_top: "casa" | Walmart, Soriana, productos de limpieza, apps de delivery |
+| categoria_top: "diversion" | Uber Eats, Cinepolis, Spotify, streaming |
+| categoria_top: "salud" | Farmacias, seguros medicos, GNP, suplementos |
+| tiene_tarjetas: "si" | Nu, Rappi Card, consolidacion de deuda |
+| nivel_gasto: "alto" | Inversiones, seguros premium, tarjetas de credito |
+| nivel_gasto: "bajo" | Ofertas, descuentos, cashback, apps de ahorro |
+
+**Funcion de calculo (se ejecuta en el telefono, no se sube nada):**
+
+```javascript
+function perfilParaAds(gastos, moneda) {
+  const recientes = gastos.filter(g => esUltimos30Dias(g.fecha));
+  const porCat = {};
+  let total = 0;
+  recientes.forEach(g => {
+    porCat[g.categoria] = (porCat[g.categoria] || 0) + Number(g.monto);
+    total += Number(g.monto);
+  });
+  const catTop = Object.entries(porCat).sort((a, b) => b[1] - a[1])[0]?.[0] || "casa";
+  const nivel = total > 8000 ? "alto" : total > 4000 ? "medio" : "bajo";
+  const usaCredito = recientes.some(g => g.medio_pago === "credito");
+  return { categoria_top: catTop, nivel_gasto: nivel, tiene_tarjetas: usaCredito ? "si" : "no", pais: moneda === "MXN" ? "MX" : "LATAM" };
+}
+```
+
+**Privacidad:** los montos y notas NUNCA salen del telefono. Solo se envian categorias
+genericas como custom targeting a AdMob. Esto se declara en la politica de privacidad.
 
 ### Fase C7 — Expansion hispanoamerica (año 2-3)
 

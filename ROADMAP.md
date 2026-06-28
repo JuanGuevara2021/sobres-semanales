@@ -95,6 +95,99 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 
 ---
 
+## Fase C — Comercializacion (Google Play)
+
+### Estado actual: preparando version publica
+
+#### Fase C1 — Preparar app para usuarios publicos ✅ COMPLETADA (2026-06-28)
+
+- [x] **[CC]** Onboarding para nuevos usuarios (wizard con plantillas de sobres)
+- [x] **[CC]** Tour de bienvenida (7 slides explicando el metodo)
+- [x] **[CC]** Dia de inicio de semana configurable (sabado, lunes, domingo)
+- [x] **[CC]** Soporte para multiples monedas (MXN, COP, ARS, PEN, CLP, USD)
+- [x] **[CC]** Flag `VITE_APP_MODE` (personal vs public) en `src/lib/appMode.js`
+- [x] **[CC]** Sistema de pilares progresivos en `src/lib/pilares.js`
+- [x] **[CC]** Migracion SQL: `pilar_actual` en tabla perfiles
+- [x] **[CC]** Terminos de servicio (`docs/TERMINOS_DE_SERVICIO.md`)
+- [x] **[CC]** Politica de privacidad (`docs/POLITICA_DE_PRIVACIDAD.md`)
+- [x] **[CC]** Documentacion de pilares (`docs/PILARES_ONBOARDING.md`)
+- [x] **[CC]** Plan comercial con analisis de mercado, proyecciones y estrategia de ads (`docs/PLAN_COMERCIAL.md`)
+
+#### Fase C2 — Look Material Design 3 ✅ COMPLETADA (2026-06-28)
+
+- [x] **[CC]** Adaptar look de la version publica a Material Design 3 (Material You)
+- [x] **[CC]** Botones: filled, outlined, tonal (3 niveles)
+- [x] **[CC]** Cards: elevacion sutil, bordes mas redondeados (20px, sin border, shadow)
+- [x] **[CC]** Nav inferior: pill indicator en tab activo
+- [x] **[CC]** FAB (boton flotante) para "Registrar gasto"
+- [x] **[CC]** Bottom sheets: slide-up con drag handle + animacion
+- [x] **[CC]** Chips: mas redondeados, estilo tonal (sin borde, fondo sutil)
+- [x] **[CC]** Solo aplica a `VITE_APP_MODE=public`, la version personal no cambia
+
+#### Fase C3 — Publicar en Google Play (EN PROGRESO)
+
+- [x] **[CC]** Generar keystore de firma (`~/.android-keystore/sobres-semanales.jks`)
+- [x] **[CC]** Configurar signing release en `android/app/build.gradle`
+- [x] **[CC]** Generar AAB firmado v1.0.0 (`android/app/release/sobres-semanales-v1.0.0.aab`, 3.2 MB)
+- [x] **[CC]** Script de build release (`build-release.sh`)
+- [x] **[CC]** Preparar textos de tienda: titulo, descripcion, data safety (`docs/GOOGLE_PLAY_LISTING.md`)
+- [ ] **[JUAN]** Crear cuenta de Google Play Developer ($25 USD, pago unico) → https://play.google.com/console/signup
+- [ ] **[JUAN/CC]** Crear icono 512x512 y feature graphic 1024x500
+- [ ] **[JUAN]** Tomar capturas de pantalla de la app (5-8 capturas)
+- [ ] **[JUAN]** Subir AAB y assets a Google Play Console
+- [ ] **[JUAN]** Llenar formularios: clasificacion, declaracion de datos (guia en `docs/GOOGLE_PLAY_LISTING.md`)
+- [ ] **[JUAN]** Pegar URLs: `https://sobres-semanales.vercel.app/terminos.html` y `/privacidad.html`
+- [ ] **[JUAN]** Enviar a revision (tarda 1-7 dias para apps nuevas)
+
+#### Fase C4 — Monetizacion base
+
+- [ ] **[JUAN]** Crear cuenta en Google AdMob (admob.google.com, gratis)
+- [ ] **[CC]** Instalar plugin Capacitor para AdMob (`@capacitor-community/admob`)
+- [ ] **[CC]** Configurar banner (abajo del contenido, arriba de nav) — escalado por pilar
+- [ ] **[CC]** Configurar interstitial en momentos naturales (despues de cerrar semana, al volver de ajustes)
+- [ ] **[CC]** Implementar tier Pro: logica de suscripcion con Google Play Billing
+- [ ] **[CC]** Features Pro: sin anuncios, exportar gastos a CSV/Excel, temas extra
+- [ ] **[CC]** Condicionar ads por pilar y suscripcion Pro
+
+#### Fase C5 — Feedback y bugs de usuarios
+
+- [ ] **[CC]** Boton "Reportar problema" en Ajustes (abre correo con info del dispositivo)
+- [ ] **[CC]** Boton "Sugerir mejora" en Ajustes (abre formulario simple)
+- [ ] **[JUAN]** Crear correo soporte@sobressemanales.com (puede ser alias de Gmail)
+- [ ] **[JUAN]** Crear correo privacidad@sobressemanales.com (puede ser alias de Gmail)
+- [ ] **[CC]** Integrar Firebase Crashlytics (deteccion automatica de crashes)
+- [ ] **[CC]** Prompt de resena en Google Play (despues de 2 semanas de uso, 1 vez)
+
+#### Fase C6 — Landing page y presencia
+
+- [ ] **[CC]** Landing page: "Ahorra sin pensarlo — controla tus gastos semana a semana"
+- [ ] **[CC]** Seccion "Como funciona" (3-4 pasos visuales)
+- [ ] **[CC]** Boton de descarga a Play Store + link a PWA
+- [ ] **[CC]** Subir Terminos de Servicio y Politica de Privacidad como paginas HTML
+- [ ] **[JUAN]** Comprar dominio (ej: sobressemanales.com, ~$200 MXN/ano)
+
+#### Fase C7 — Crecimiento organico (continuo desde mes 3)
+
+- [ ] Contenido en TikTok/Reels: tips de finanzas usando la app
+- [ ] SEO del landing: "app para controlar gastos semanal", "sobres de presupuesto Mexico"
+- [ ] Pedir resenas en Play Store despues de 2 semanas de uso
+- [ ] Referidos: "Invita a tu pareja/roommate" (la app ya soporta 2 usuarios)
+
+#### Fase C8 — Publicidad personalizada (mes 6-12)
+
+- [ ] **[CC]** Implementar `perfilParaAds()`: categoria top, nivel gasto, uso tarjetas
+- [ ] **[CC]** Enviar custom signals a AdMob (anonimizados, sin datos personales)
+- [ ] A/B testing de formatos y frecuencia
+- [ ] Medir eCPM real vs generico
+
+#### Fase C9 — Expansion hispanoamerica (ano 2-3)
+
+- [ ] Adaptar landing y assets de tienda por pais
+- [ ] Marketing en redes por pais
+- [ ] Considerar partnerships con influencers de finanzas
+
+---
+
 ## Bugs corregidos
 
 ### Presupuesto y sobres (2026-06-16)
@@ -113,6 +206,15 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 
 ### Graficas (2026-06-16)
 - [x] **[CC]** Eje Y visible en grafica de gasto por dia de la semana (`db8fe5a`)
+
+### Sobres y cierres (2026-06-20)
+- [x] **[CC]** Arrastrar deficit de sobres ahorro entre semanas (`662156b`)
+- [x] **[CC]** Mostrar saldo historico correcto en semanas cerradas (`37909fa`)
+- [x] **[CC]** Analisis 2sem/4sem muestra semanas cerradas, no la actual (`8b25882`)
+- [x] **[CC]** Sobre Ahorro muestra disponible real: saldo + aportacion - gastado (`0ec4a5a`)
+
+### Bugs corregidos por Juan (2026-06-28)
+- [x] **[JUAN]** Sobres no se acumulaban correctamente (fix directo)
 
 ---
 
