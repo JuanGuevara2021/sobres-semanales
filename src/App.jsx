@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { CuentaProvider, useCuenta } from "./contexts/CuentaContext";
 import { supabase } from "./lib/supabase";
@@ -9,6 +9,7 @@ import PinLock, { hasPin, isUnlocked, setPin, clearUnlock } from "./components/P
 import WelcomeTour, { needsTour, markTourDone } from "./components/WelcomeTour";
 import { esPublica } from "./lib/appMode";
 import { getTabsVisibles, calcPilarSugerido, getTransicion } from "./lib/pilares";
+import { initAds, showBanner, hideBanner, prepareInterstitial, showInterstitial, shouldShowAds } from "./lib/ads";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, ReferenceLine, CartesianGrid, LabelList,
@@ -2061,7 +2062,32 @@ function AppMain() {
     if (!visibles.includes(tab)) setTab("semana");
   }, [pilar, tab]);
 
-  const addGasto = async (gasto) => { const { error } = await supabase.from("gastos").insert({ ...gasto, cuenta_id: cuentaId, usuario_id: perfil.user_id }); if (error) throw error; };
+  // Ads: inicializar y mostrar banner segun pilar
+  const gastosCountRef = useRef(gastos.length);
+  useEffect(() => {
+    initAds().then(() => {
+      if (shouldShowAds(pilar)) {
+        showBanner(pilar);
+        prepareInterstitial(pilar);
+      }
+    });
+    return () => { hideBanner(); };
+  }, []);
+
+  useEffect(() => {
+    if (shouldShowAds(pilar)) { showBanner(pilar); prepareInterstitial(pilar); }
+    else hideBanner();
+  }, [pilar]);
+
+  const addGasto = async (gasto) => {
+    const { error } = await supabase.from("gastos").insert({ ...gasto, cuenta_id: cuentaId, usuario_id: perfil.user_id });
+    if (error) throw error;
+    // Interstitial despues de cada 5 gastos registrados
+    gastosCountRef.current += 1;
+    if (gastosCountRef.current % 5 === 0 && shouldShowAds(pilar)) {
+      setTimeout(() => showInterstitial(pilar), 800);
+    }
+  };
   const deleteGasto = async (id) => {
     const { error } = await supabase.from("gastos").delete().eq("id", id);
     if (error) setErr("Error al borrar gasto.");

@@ -139,15 +139,18 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [ ] **[JUAN]** Pegar URLs: `https://sobres-semanales.vercel.app/terminos.html` y `/privacidad.html`
 - [ ] **[JUAN]** Enviar a revision (tarda 1-7 dias para apps nuevas)
 
-#### Fase C4 — Monetizacion base
+#### Fase C4 — Monetizacion base (EN PROGRESO)
 
 - [ ] **[JUAN]** Crear cuenta en Google AdMob (admob.google.com, gratis)
-- [ ] **[CC]** Instalar plugin Capacitor para AdMob (`@capacitor-community/admob`)
-- [ ] **[CC]** Configurar banner (abajo del contenido, arriba de nav) — escalado por pilar
-- [ ] **[CC]** Configurar interstitial en momentos naturales (despues de cerrar semana, al volver de ajustes)
+- [x] **[CC]** Instalar plugin Capacitor para AdMob (`@capacitor-community/admob`)
+- [x] **[CC]** Modulo `src/lib/ads.js`: logica centralizada de ads por pilar
+- [x] **[CC]** Configurar banner (abajo del contenido) — escalado por pilar
+- [x] **[CC]** Configurar interstitial (cada 5 gastos, min 3 min entre c/u) — escalado por pilar
+- [x] **[CC]** AndroidManifest con App ID de AdMob (IDs de prueba, cambiar por reales)
+- [ ] **[JUAN]** Crear ad units en AdMob (banner + interstitial) y dar IDs a CC
+- [ ] **[CC]** Reemplazar IDs de prueba por los reales en `ads.js` y AndroidManifest
 - [ ] **[CC]** Implementar tier Pro: logica de suscripcion con Google Play Billing
 - [ ] **[CC]** Features Pro: sin anuncios, exportar gastos a CSV/Excel, temas extra
-- [ ] **[CC]** Condicionar ads por pilar y suscripcion Pro
 
 #### Fase C5 — Feedback y bugs de usuarios
 
