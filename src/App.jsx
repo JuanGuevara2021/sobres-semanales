@@ -143,19 +143,34 @@ function calcMSI(msi, pagoEsteMes = false) {
   return { estatus: "activo", pagados, meses, mensual, restante: mensual * (meses - pagados) };
 }
 
-/* ---------- cierre automatico v2.1 ---------- */
+/* ---------- cierre automatico v2.2 ---------- */
 async function autoClose(sobres, gastos, cierresExistentes, cuentaId, weekStartOf, weekOf) {
   const todayWS = toStr(weekStartOf(new Date()));
-  const semanasConGastos = [...new Set(gastos.map((g) => weekOf(g.fecha)))];
+  const semanasConGastos = [...new Set(gastos.map((g) => weekOf(g.fecha)))]
+    .filter((ws) => ws < todayWS)
+    .sort();
   const yaCerradas = new Set(cierresExistentes.map((c) => c.semana));
+
+  // Saldo corriente por sobre (arranca del valor en BD)
+  const saldoR = {};
+  for (const s of sobres) saldoR[s.id] = Number(s.saldo_acumulado) || 0;
+
   const nuevos = [];
   for (const ws of semanasConGastos) {
-    if (ws >= todayWS || yaCerradas.has(ws)) continue;
+    if (yaCerradas.has(ws)) continue;
     const detalle = sobres
       .filter((s) => !s.es_ahorro)
       .map((s) => {
         const gastado = gastos.filter((g) => g.sobre_id === s.id && weekOf(g.fecha) === ws).reduce((a, g) => a + Number(g.monto), 0);
-        const sobrante = s.tipo_cierre === "ahorro" ? Math.max(0, Number(s.aportacion_semanal) - gastado) : 0;
+        let sobrante = 0;
+        if (s.tipo_cierre === "ahorro") {
+          // neto = saldo arrastrado + aportacion - gastado
+          const neto = saldoR[s.id] + Number(s.aportacion_semanal) - gastado;
+          if (neto >= 0) { sobrante = neto; saldoR[s.id] = 0; }
+          else { sobrante = 0; saldoR[s.id] = neto; }
+        } else {
+          saldoR[s.id] += Number(s.aportacion_semanal) - gastado;
+        }
         return { sobre_id: s.id, nombre: s.nombre, emoji: s.emoji, aportacion: Number(s.aportacion_semanal), gastado, sobrante, tipo_cierre: s.tipo_cierre };
       });
     const totalAAhorro = detalle.reduce((a, x) => a + x.sobrante, 0);
@@ -165,15 +180,11 @@ async function autoClose(sobres, gastos, cierresExistentes, cuentaId, weekStartO
   const { data: insertados, error } = await supabase.from("cierres").insert(nuevos).select();
   if (error) { console.error("Error al cerrar semanas:", error); return { nuevos: [], totalAhorrado: 0 }; }
 
-  // Actualizar saldo_acumulado de sobres acumula (arrastrar sobrante/deficit)
-  const acumulaSobres = sobres.filter((s) => !s.es_ahorro && s.tipo_cierre === "acumula");
-  for (const s of acumulaSobres) {
-    let net = 0;
-    for (const c of nuevos) {
-      const d = c.detalle.find((x) => x.sobre_id === s.id);
-      if (d) net += d.aportacion - d.gastado;
+  // Actualizar saldo_acumulado de TODOS los sobres (ahorro y acumula)
+  for (const s of sobres.filter((s) => !s.es_ahorro)) {
+    if (saldoR[s.id] !== Number(s.saldo_acumulado)) {
+      await supabase.from("sobres").update({ saldo_acumulado: saldoR[s.id] }).eq("id", s.id);
     }
-    if (net !== 0) await supabase.from("sobres").update({ saldo_acumulado: Number(s.saldo_acumulado) + net }).eq("id", s.id);
   }
 
   // Actualizar Ahorro: aportacion propia + sobrantes recibidos - gastos desde ahorro
@@ -199,7 +210,7 @@ function SobreCard({ sobre, gastado }) {
   const { money, catLabel, catColor } = useCuenta();
   const presup = Number(sobre.aportacion_semanal);
   const catDef = sobre.categoria_default_nombre || sobre.categoria_default;
-  const disponible = sobre.tipo_cierre === "acumula" ? Number(sobre.saldo_acumulado) + presup - gastado : presup - gastado;
+  const disponible = Number(sobre.saldo_acumulado) + presup - gastado;
   const pct = presup > 0 ? Math.max(0, Math.min(1, disponible / presup)) : 0;
   const estado = disponible < 0 ? "rojo" : pct <= 0.25 ? "ambar" : "verde";
   const colorVar = estado === "rojo" ? "var(--red)" : estado === "ambar" ? "var(--amber)" : "var(--green)";

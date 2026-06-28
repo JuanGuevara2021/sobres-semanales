@@ -42,8 +42,9 @@ Categorias default: casa, renta, diversion, salud, escuela, tarjetas. Se almacen
 1. **El dia de inicio de semana es configurable** (sabado, lunes o domingo) por cuenta.
    Se calcula a partir de la fecha del gasto; nunca se almacena como campo editable.
 2. Cada sobre tiene un **tipo de cierre**:
-   - `ahorro`: al cerrar la semana, el sobrante positivo pasa al sobre Ahorro y el sobre reinicia. Sobregiro NO descuenta del Ahorro.
-   - `acumula`: el saldo se arrastra entre semanas. Disponible = `saldo_acumulado + aportacion_semanal - gastos_de_la_semana`.
+   - `ahorro`: al cerrar la semana, el sobrante positivo pasa al sobre Ahorro y el sobre reinicia. Si hubo sobregiro, el deficit se arrastra a la siguiente semana (reduce la aportacion disponible). Sobregiro NO descuenta del Ahorro.
+   - `acumula`: el saldo se arrastra entre semanas (positivo o negativo).
+   - Para ambos tipos: Disponible = `saldo_acumulado + aportacion_semanal - gastos_de_la_semana`.
 3. El sobre **Ahorro** es tipo `acumula`, con aportacion semanal propia, y ademas recibe sobrantes de sobres tipo `ahorro`.
 4. **Cierre automatico** de semanas pasadas con >=1 gasto; cada cierre es un **snapshot**.
    El cierre guarda presupuesto y gastado al momento; cambiar presupuestos despues no reescribe la historia.
