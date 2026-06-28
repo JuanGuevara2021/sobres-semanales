@@ -543,7 +543,9 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
           const sobreVista = d && d.saldo_inicio != null ? { ...s, saldo_acumulado: d.saldo_inicio } : s;
           return <SobreCard key={s.id} sobre={sobreVista} gastado={gastadoPor(s.id)} />;
         })}
-        {sobres.filter((s) => s.es_ahorro).map((s) => (
+        {sobres.filter((s) => s.es_ahorro).map((s) => {
+          const ahorroDisp = Number(s.saldo_acumulado) + Number(s.aportacion_semanal) - gastadoPor(s.id);
+          return (
           <div key={s.id} className="sobre-card col-span-2">
             <div className="sobre-flap" style={{ background: "var(--green)" }} />
             <div className="px-3 pt-5 pb-3">
@@ -551,13 +553,14 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
                 <span className="text-lg">🐷</span>
                 <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{s.nombre}</span>
               </div>
-              <div className="mt-2 num text-xl font-semibold" style={{ color: "var(--green)" }}>{money(Number(s.saldo_acumulado))}</div>
+              <div className="mt-2 num text-xl font-semibold" style={{ color: ahorroDisp < 0 ? "var(--red)" : "var(--green)" }}>{money(ahorroDisp)}</div>
               <div className="text-xs" style={{ color: "var(--ink-soft)" }}>
                 +{money(Number(s.aportacion_semanal))}/sem · gastado: {money(gastadoPor(s.id))}
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <button onClick={() => setShowForm(true)} className="w-full rounded-xl py-3 font-bold text-sm mb-4" style={{ background: "var(--green)", color: "#fff" }}>
