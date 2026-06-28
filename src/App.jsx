@@ -162,16 +162,16 @@ async function autoClose(sobres, gastos, cierresExistentes, cuentaId, weekStartO
       .filter((s) => !s.es_ahorro)
       .map((s) => {
         const gastado = gastos.filter((g) => g.sobre_id === s.id && weekOf(g.fecha) === ws).reduce((a, g) => a + Number(g.monto), 0);
+        const saldoInicio = saldoR[s.id];
         let sobrante = 0;
         if (s.tipo_cierre === "ahorro") {
-          // neto = saldo arrastrado + aportacion - gastado
           const neto = saldoR[s.id] + Number(s.aportacion_semanal) - gastado;
           if (neto >= 0) { sobrante = neto; saldoR[s.id] = 0; }
           else { sobrante = 0; saldoR[s.id] = neto; }
         } else {
           saldoR[s.id] += Number(s.aportacion_semanal) - gastado;
         }
-        return { sobre_id: s.id, nombre: s.nombre, emoji: s.emoji, aportacion: Number(s.aportacion_semanal), gastado, sobrante, tipo_cierre: s.tipo_cierre };
+        return { sobre_id: s.id, nombre: s.nombre, emoji: s.emoji, aportacion: Number(s.aportacion_semanal), gastado, sobrante, tipo_cierre: s.tipo_cierre, saldo_inicio: saldoInicio };
       });
     const totalAAhorro = detalle.reduce((a, x) => a + x.sobrante, 0);
     nuevos.push({ cuenta_id: cuentaId, semana: ws, detalle, total_a_ahorro: totalAAhorro });
@@ -538,7 +538,11 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
       )}
 
       <div className="grid grid-cols-2 gap-2 mb-4">
-        {gastables.map((s) => <SobreCard key={s.id} sobre={s} gastado={gastadoPor(s.id)} />)}
+        {gastables.map((s) => {
+          const d = cierre && cierre.detalle.find((x) => x.sobre_id === s.id);
+          const sobreVista = d && d.saldo_inicio != null ? { ...s, saldo_acumulado: d.saldo_inicio } : s;
+          return <SobreCard key={s.id} sobre={sobreVista} gastado={gastadoPor(s.id)} />;
+        })}
         {sobres.filter((s) => s.es_ahorro).map((s) => (
           <div key={s.id} className="sobre-card col-span-2">
             <div className="sobre-flap" style={{ background: "var(--green)" }} />
