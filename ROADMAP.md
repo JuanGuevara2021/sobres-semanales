@@ -173,10 +173,13 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 
 #### Fase C6 — Landing page y presencia
 
-- [ ] **[CC]** Landing page: "Ahorra sin pensarlo — controla tus gastos semana a semana"
-- [ ] **[CC]** Seccion "Como funciona" (3-4 pasos visuales)
-- [ ] **[CC]** Boton de descarga a Play Store + link a PWA
-- [ ] **[CC]** Subir Terminos de Servicio y Politica de Privacidad como paginas HTML
+- [x] **[CC]** Landing page integrada (`src/components/Landing.jsx`)
+- [x] **[CC]** Hero con logo, titulo y subtitulo
+- [x] **[CC]** Seccion "Como funciona" (3 pasos visuales)
+- [x] **[CC]** Grid de 6 features (sobres, libreta, ahorro, analisis, sync, seguridad)
+- [x] **[CC]** Comparacion Gratis vs Pro (solo version publica)
+- [x] **[CC]** Boton de descarga a Play Store + CTA "Comenzar gratis"
+- [x] **[CC]** Footer con links a terminos, privacidad y contacto
 - [ ] **[JUAN]** Comprar dominio (ej: sobressemanales.com, ~$200 MXN/ano)
 
 #### Fase C7 — Crecimiento organico (continuo desde mes 3)

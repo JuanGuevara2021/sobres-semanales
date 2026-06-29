@@ -4,6 +4,7 @@ import { CuentaProvider, useCuenta } from "./contexts/CuentaContext";
 import { supabase } from "./lib/supabase";
 import { toStr, fromStr, addDays, MESES, DIAS, DIAS_INICIO_OPTIONS, COLORES_CATEGORIA } from "./lib/config";
 import Login from "./components/Login";
+import Landing from "./components/Landing";
 import OnboardingWizard from "./components/OnboardingWizard";
 import PinLock, { hasPin, isUnlocked, setPin, clearUnlock } from "./components/PinLock";
 import WelcomeTour, { needsTour, markTourDone } from "./components/WelcomeTour";
@@ -2481,9 +2482,13 @@ export default function App() {
 function AppContent() {
   const { session, perfil, cargando } = useAuth();
   const [pinOk, setPinOk] = useState(!hasPin() || isUnlocked());
+  const [showLogin, setShowLogin] = useState(false);
 
   if (cargando) return <div className="min-h-screen flex items-center justify-center" style={{ background: "#F6F4ED" }}><div className="text-sm" style={{ color: "#5A6B85" }}>Cargando...</div></div>;
-  if (!session) return <Login />;
+  if (!session) {
+    if (esPublica && !showLogin) return <Landing onLogin={() => setShowLogin(true)} />;
+    return <Login />;
+  }
   if (!perfil) return <OnboardingWizard />;
   if (hasPin() && !pinOk) return <PinLock nombre={perfil.nombre} onUnlock={() => setPinOk(true)} />;
   return <CuentaProvider cuentaId={perfil.cuenta_id}><AppMain /></CuentaProvider>;
