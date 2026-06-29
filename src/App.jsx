@@ -11,6 +11,8 @@ import { esPublica } from "./lib/appMode";
 import { getTabsVisibles, calcPilarSugerido, getTransicion } from "./lib/pilares";
 import { initAds, showBanner, hideBanner, prepareInterstitial, showInterstitial, shouldShowAds } from "./lib/ads";
 import { exportGastosCSV, purchasePro, restorePurchases } from "./lib/pro";
+import { initCrashlytics, logError } from "./lib/crashlytics";
+import { markFirstUse, tryRequestReview } from "./lib/review";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, ReferenceLine, CartesianGrid, LabelList,
@@ -2221,6 +2223,16 @@ function AppMain() {
     const visibles = getTabsVisibles(pilar);
     if (!visibles.includes(tab)) setTab("semana");
   }, [pilar, tab]);
+
+  // Crashlytics + review prompt
+  useEffect(() => {
+    initCrashlytics(perfil?.user_id);
+    markFirstUse();
+  }, []);
+
+  useEffect(() => {
+    if (gastos.length > 0 && gastos.length % 20 === 0) tryRequestReview();
+  }, [gastos.length]);
 
   // Ads: inicializar y mostrar banner segun pilar (Pro = sin ads)
   const gastosCountRef = useRef(gastos.length);

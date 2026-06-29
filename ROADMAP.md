@@ -167,8 +167,9 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[CC]** Boton "Sugerir mejora" en Ajustes (abre correo prellenado)
 - [ ] **[JUAN]** Crear correo soporte@sobressemanales.com (puede ser alias de Gmail)
 - [ ] **[JUAN]** Crear correo privacidad@sobressemanales.com (puede ser alias de Gmail)
-- [ ] **[CC]** Integrar Firebase Crashlytics (deteccion automatica de crashes)
-- [ ] **[CC]** Prompt de resena en Google Play (despues de 2 semanas de uso, 1 vez)
+- [x] **[CC]** Integrar Firebase Crashlytics (`src/lib/crashlytics.js`, gradle configurado)
+- [x] **[CC]** Prompt de resena en Google Play (`src/lib/review.js`, despues de 14 dias, 1 vez)
+- [ ] **[JUAN]** Crear proyecto Firebase y descargar `google-services.json` a `android/app/`
 
 #### Fase C6 — Landing page y presencia
 
