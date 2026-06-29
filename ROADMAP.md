@@ -147,10 +147,19 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[CC]** Configurar banner (abajo del contenido) — escalado por pilar
 - [x] **[CC]** Configurar interstitial (cada 5 gastos, min 3 min entre c/u) — escalado por pilar
 - [x] **[CC]** AndroidManifest con App ID de AdMob (IDs de prueba, cambiar por reales)
-- [ ] **[JUAN]** Crear ad units en AdMob (banner + interstitial) y dar IDs a CC
-- [ ] **[CC]** Reemplazar IDs de prueba por los reales en `ads.js` y AndroidManifest
-- [ ] **[CC]** Implementar tier Pro: logica de suscripcion con Google Play Billing
-- [ ] **[CC]** Features Pro: sin anuncios, exportar gastos a CSV/Excel, temas extra
+- [x] **[JUAN]** Crear ad units en AdMob (banner + interstitial) y dar IDs reales
+- [x] **[CC]** IDs reales configurados en `ads.js` y AndroidManifest
+- [x] **[CC]** Modulo `src/lib/pro.js`: logica Pro (RevenueCat, exportar CSV)
+- [x] **[CC]** Campo `es_pro` en tabla perfiles (migracion SQL aplicada)
+- [x] **[CC]** Modal "Hazte Pro" con beneficios y boton de compra
+- [x] **[CC]** 3 temas Pro (Oceano, Bosque, Medianoche) con candado en Ajustes
+- [x] **[CC]** Exportar gastos a CSV (funcion Pro)
+- [x] **[CC]** Pro = sin anuncios (ads se ocultan automaticamente)
+- [x] **[CC]** Banner dorado "Hazte Pro" en Ajustes (solo version gratuita)
+- [ ] **[JUAN]** Crear cuenta en RevenueCat (revenuecat.com, gratis hasta $2.5k/mes)
+- [ ] **[JUAN]** En RevenueCat: crear app Android, crear entitlement "pro", crear producto "sobres_pro_anual"
+- [ ] **[CC]** Configurar API key real de RevenueCat en `src/lib/pro.js`
+- [ ] **[JUAN]** En Google Play Console: crear suscripcion "sobres_pro_anual" ($120 MXN/año)
 
 #### Fase C5 — Feedback y bugs de usuarios (EN PROGRESO)
 
