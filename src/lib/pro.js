@@ -21,7 +21,7 @@ export async function initPurchases(userId) {
   const rc = await getRC();
   if (!rc) return;
   try {
-    await rc.configure({ apiKey: "REVENUECAT_API_KEY_PENDIENTE" });
+    await rc.configure({ apiKey: "goog_UIzqlzZUWUIeVsTwVGSdxJfYNen" });
     if (userId) await rc.logIn({ appUserID: userId });
   } catch {}
 }
