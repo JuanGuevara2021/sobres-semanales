@@ -8,65 +8,126 @@
     body { font-family: system-ui, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px 16px; color: #22324A; line-height: 1.6; }
     h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
     h2 { font-size: 1.1rem; margin-top: 1.5rem; color: #0B7A4B; }
+    h3 { font-size: 1rem; margin-top: 1rem; }
     .date { font-size: 0.85rem; color: #5A6B85; margin-bottom: 2rem; }
-    p, li { font-size: 0.9rem; }
+    p, li, td, th { font-size: 0.9rem; }
     ul { padding-left: 1.25rem; }
     a { color: #0B7A4B; }
+    table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.85rem; }
+    th, td { border: 1px solid #D1D9E0; padding: 6px 8px; text-align: left; }
+    th { background: #F0F4F3; }
   </style>
 </head>
 <body>
   <h1>Politica de Privacidad</h1>
-  <div class="date">Ultima actualizacion: 21 de junio de 2026</div>
+  <div class="date">Ultima actualizacion: 1 de julio de 2026</div>
 
-  <h2>1. Informacion que recopilamos</h2>
-  <p>Al usar Sobres Semanales recopilamos:</p>
+  <h2>1. Introduccion</h2>
+  <p>Sobres Semanales (&quot;la App&quot;, &quot;nosotros&quot;) respeta tu privacidad. Esta Politica de Privacidad describe que datos recopilamos, como los usamos, con quien los compartimos y como puedes ejercer tus derechos. Al usar la App, aceptas las practicas descritas aqui.</p>
+
+  <h2>2. Responsable del tratamiento de datos</h2>
+  <p>Sobres Semanales<br>Ciudad de Mexico, Mexico<br>Correo de contacto: <a href="mailto:juan.baltazar1948@gmail.com">juan.baltazar1948@gmail.com</a></p>
+
+  <h2>3. Datos que recopilamos</h2>
+
+  <h3>3.1 Datos que TU nos proporcionas</h3>
+  <table>
+    <tr><th>Dato</th><th>Para que lo usamos</th></tr>
+    <tr><td>Correo electronico</td><td>Crear tu cuenta e iniciar sesion</td></tr>
+    <tr><td>Nombre</td><td>Personalizar la App</td></tr>
+    <tr><td>Contrasena</td><td>Autenticacion (se almacena encriptada, nunca la vemos en texto)</td></tr>
+    <tr><td>Gastos (monto, nota, fecha, categoria, medio de pago)</td><td>Funcion principal de la App</td></tr>
+    <tr><td>Sobres (nombre, presupuesto, tipo de cierre)</td><td>Organizacion del presupuesto</td></tr>
+    <tr><td>Tarjetas de credito (nombre, banco, ultimos 4 digitos, dia corte/pago)</td><td>Rastreo informativo de pagos</td></tr>
+    <tr><td>Pagos recurrentes (nombre, monto, frecuencia)</td><td>Recordatorios de pagos</td></tr>
+    <tr><td>Compras a meses sin intereses (concepto, monto, meses)</td><td>Rastreo de deudas</td></tr>
+    <tr><td>Preferencia de tema visual</td><td>Personalizar la apariencia</td></tr>
+    <tr><td>Moneda (MXN, COP, ARS, etc.)</td><td>Formato de montos</td></tr>
+  </table>
+
+  <h3>3.2 Datos que recopilamos AUTOMATICAMENTE</h3>
+  <table>
+    <tr><th>Dato</th><th>Como lo obtenemos</th><th>Para que</th></tr>
+    <tr><td>Pais y ciudad aproximada</td><td>Direccion IP (Google AdMob)</td><td>Anuncios relevantes por region</td></tr>
+    <tr><td>Modelo de dispositivo y version de Android</td><td>Google AdMob SDK, Firebase Crashlytics</td><td>Compatibilidad, anuncios y diagnostico de errores</td></tr>
+    <tr><td>Identificador de publicidad (GAID)</td><td>Google AdMob SDK</td><td>Personalizacion de anuncios (puedes desactivarlo en Ajustes de Android)</td></tr>
+    <tr><td>Datos de uso de la App (pantallas, tiempo de sesion)</td><td>Google AdMob SDK</td><td>Optimizacion de anuncios</td></tr>
+    <tr><td>Registros de errores y fallos (crash logs)</td><td>Firebase Crashlytics</td><td>Identificar y corregir problemas tecnicos</td></tr>
+    <tr><td>Historial de compras in-app</td><td>RevenueCat SDK</td><td>Gestionar suscripciones (Plan Pro)</td></tr>
+  </table>
+
+  <h3>3.3 Datos que NO recopilamos</h3>
   <ul>
-    <li><strong>Datos de cuenta:</strong> correo electronico y contrasena (encriptada).</li>
-    <li><strong>Datos de uso:</strong> gastos, sobres, categorias, pagos recurrentes y tarjetas que tu registras voluntariamente.</li>
-    <li><strong>Datos tecnicos:</strong> tipo de dispositivo y navegador (para mejorar la experiencia). No recopilamos ubicacion ni accedemos a contactos.</li>
+    <li>Ubicacion GPS exacta</li>
+    <li>Contactos, fotos, mensajes o llamadas</li>
+    <li>Numeros completos de tarjetas de credito o debito</li>
+    <li>Datos bancarios (no conectamos a bancos)</li>
+    <li>Informacion biometrica</li>
+    <li>Datos de salud</li>
   </ul>
 
-  <h2>2. Como usamos tu informacion</h2>
+  <h2>4. Como usamos tus datos</h2>
   <ul>
-    <li>Para que la App funcione: mostrar tus gastos, calcular presupuestos, generar graficas.</li>
-    <li>Para sincronizar datos entre tus dispositivos.</li>
-    <li>Para mejorar la App (datos agregados y anonimizados).</li>
-    <li>Para mostrar publicidad relevante (version gratuita). Nunca compartimos datos personales con anunciantes.</li>
+    <li>Operar la App: guardar gastos, calcular presupuestos, sincronizar entre dispositivos.</li>
+    <li>Mostrarte anuncios (version gratuita) a traves de Google AdMob.</li>
+    <li>Enviarte notificaciones locales (recordatorios de pago, si las activas).</li>
+    <li>Diagnosticar y corregir errores tecnicos (Firebase Crashlytics).</li>
+    <li>Gestionar tu suscripcion Pro (RevenueCat).</li>
+    <li>Mejorar la App (analisis de uso agregado y anonimizado).</li>
   </ul>
 
-  <h2>3. Que NO hacemos</h2>
+  <h2>5. Con quien compartimos tus datos</h2>
+  <table>
+    <tr><th>Tercero</th><th>Que datos recibe</th><th>Para que</th></tr>
+    <tr><td>Supabase (backend)</td><td>Todos los datos de tu cuenta (encriptados en transito y en reposo)</td><td>Almacenamiento y sincronizacion</td></tr>
+    <tr><td>Google AdMob (publicidad)</td><td>GAID, IP, datos del dispositivo, interacciones con anuncios</td><td>Mostrar anuncios relevantes</td></tr>
+    <tr><td>Firebase Crashlytics (diagnostico)</td><td>Registros de fallos, modelo de dispositivo, version de Android</td><td>Identificar y corregir errores</td></tr>
+    <tr><td>RevenueCat (suscripciones)</td><td>ID de usuario anonimizado, historial de compras in-app</td><td>Gestionar suscripcion Pro</td></tr>
+    <tr><td>Google Play (pagos)</td><td>Datos de transaccion de suscripcion</td><td>Procesar pagos de Plan Pro</td></tr>
+    <tr><td>Vercel (alojamiento web)</td><td>Solicitudes HTTP (version web/PWA)</td><td>Servir la aplicacion web</td></tr>
+  </table>
+  <p><strong>No vendemos tus datos personales a terceros.</strong></p>
+
+  <h2>6. Almacenamiento y seguridad</h2>
   <ul>
-    <li>No vendemos tu informacion personal a terceros.</li>
-    <li>No accedemos a tus cuentas bancarias.</li>
-    <li>No compartimos tus datos de gasto individuales con nadie.</li>
-    <li>No recopilamos datos biometricos, ubicacion ni contactos.</li>
+    <li>Tus datos se almacenan en servidores de Supabase con encriptacion en transito (TLS) y en reposo.</li>
+    <li>Las contrasenas se almacenan con hash seguro (bcrypt); nunca las vemos en texto plano.</li>
+    <li>Aplicamos Row Level Security (RLS): cada usuario solo puede acceder a los datos de su propia cuenta.</li>
+    <li>Los datos de preferencias visuales se almacenan localmente en tu dispositivo (localStorage) y no se envian a ningun servidor.</li>
   </ul>
 
-  <h2>4. Almacenamiento y seguridad</h2>
-  <p>Tus datos se almacenan en Supabase, una plataforma de infraestructura en la nube con encriptacion en transito (TLS) y en reposo. Las contrasenas se almacenan con hash (bcrypt) y nunca se guardan en texto plano.</p>
-
-  <h2>5. Retencion de datos</h2>
-  <p>Conservamos tus datos mientras tu cuenta este activa. Si eliminas tu cuenta, borraremos todos tus datos en un plazo de 30 dias.</p>
-
-  <h2>6. Tus derechos</h2>
-  <p>Puedes:</p>
+  <h2>7. Retencion de datos</h2>
   <ul>
-    <li>Acceder a todos tus datos desde la App.</li>
-    <li>Exportar tus datos (funcion disponible en plan Pro).</li>
-    <li>Solicitar la eliminacion de tu cuenta y todos tus datos.</li>
-    <li>Modificar o corregir tu informacion personal.</li>
+    <li>Tus datos se conservan mientras tu cuenta este activa.</li>
+    <li>Si solicitas la eliminacion de tu cuenta, todos tus datos personales seran borrados dentro de 30 dias.</li>
+    <li>Los datos anonimizados y agregados pueden conservarse indefinidamente.</li>
+    <li>Los respaldos automaticos se eliminan dentro de 90 dias despues de la solicitud de borrado.</li>
   </ul>
 
-  <h2>7. Publicidad</h2>
-  <p>La version gratuita de la App muestra anuncios a traves de servicios de terceros (como Google AdMob). Estos servicios pueden recopilar identificadores de dispositivo para mostrar anuncios. Puedes eliminar los anuncios suscribiendote al plan Pro.</p>
+  <h2>8. Tus derechos</h2>
+  <p>De acuerdo con la Ley Federal de Proteccion de Datos Personales en Posesion de los Particulares (LFPDPPP) de Mexico, tienes derecho a:</p>
+  <ul>
+    <li><strong>Acceso</strong> — saber que datos tenemos de ti.</li>
+    <li><strong>Rectificacion</strong> — corregir datos inexactos (desde la App o por correo).</li>
+    <li><strong>Cancelacion</strong> — eliminar tu cuenta y datos.</li>
+    <li><strong>Oposicion</strong> — oponerte al uso de tus datos.</li>
+    <li><strong>Revocar consentimiento</strong> — desinstalar la App o escribirnos.</li>
+    <li><strong>Desactivar anuncios personalizados</strong> — Ajustes de Android &gt; Google &gt; Anuncios.</li>
+  </ul>
+  <p>Para ejercer estos derechos, escribe a <a href="mailto:juan.baltazar1948@gmail.com">juan.baltazar1948@gmail.com</a>. Responderemos dentro de 20 dias habiles.</p>
 
-  <h2>8. Menores de edad</h2>
-  <p>La App no esta dirigida a menores de 13 anos. No recopilamos intencionalmente informacion de menores de esta edad.</p>
+  <h2>9. Menores de edad</h2>
+  <p>La App no esta dirigida a menores de 13 anos. No recopilamos intencionalmente datos de menores. Si descubrimos que un menor ha creado una cuenta, la eliminaremos.</p>
 
-  <h2>9. Cambios a esta politica</h2>
-  <p>Podemos actualizar esta politica. Te notificaremos de cambios importantes a traves de la App.</p>
+  <h2>10. Transferencias internacionales de datos</h2>
+  <p>Tus datos pueden almacenarse en servidores ubicados fuera de Mexico (Supabase utiliza infraestructura en la nube). Al usar la App, consientes esta transferencia. Los proveedores que utilizamos cumplen con estandares de seguridad internacionales.</p>
 
-  <h2>10. Contacto</h2>
-  <p>Para preguntas sobre privacidad: <a href="mailto:juan.baltazar1948@gmail.com">juan.baltazar1948@gmail.com</a></p>
+  <h2>11. Cambios a esta politica</h2>
+  <p>Podemos actualizar esta Politica de Privacidad periodicamente. Te notificaremos de cambios significativos a traves de la App. La fecha de &quot;ultima actualizacion&quot; refleja la version vigente.</p>
+
+  <h2>12. Contacto</h2>
+  <p>Para dudas o solicitudes sobre privacidad:<br><a href="mailto:juan.baltazar1948@gmail.com">juan.baltazar1948@gmail.com</a></p>
+
+  <p style="margin-top: 2rem; font-size: 0.8rem; color: #5A6B85;">Sobres Semanales — Ciudad de Mexico, Mexico</p>
 </body>
 </html>
