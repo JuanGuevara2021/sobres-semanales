@@ -7,6 +7,10 @@ export function hasPin() {
   return !!localStorage.getItem(PIN_KEY);
 }
 
+export function getPin() {
+  return localStorage.getItem(PIN_KEY);
+}
+
 export function isUnlocked() {
   return sessionStorage.getItem(PIN_OK_KEY) === "1";
 }

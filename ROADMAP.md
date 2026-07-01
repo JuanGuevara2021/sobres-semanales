@@ -10,7 +10,7 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[JUAN]** Crear cuenta en https://supabase.com
 - [x] **[JUAN]** En Supabase: New Project → nombre `sobres-semanales` → region mas cercana → guardar contrasena de la base
 - [x] **[JUAN]** En Supabase: Settings → API → copiar `Project URL` y `anon public key`
-- [ ] **[JUAN]** Crear cuenta en https://vercel.com (boton "Sign Up", entra con tu GitHub)
+- [x] **[JUAN]** Crear cuenta en https://vercel.com (boton "Sign Up", entra con tu GitHub)
 - [x] **[JUAN]** Abrir terminal en la carpeta del proyecto y ejecutar `claude`
 
 ## Fase 1 — App corriendo local en tu PC
@@ -32,14 +32,14 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[CC]** Migrar la logica de cierre semanal para que corra contra la base
 - [x] **[CC]** Activar sincronizacion en tiempo real (un gasto registrado en un telefono aparece en el otro)
 - [x] **[CC]** Migracion v2.1b: `presupuesto_semanal` en cuentas, `frecuencia`/`medio_pago` en pagos_recurrentes, seed de 12 pagos
-- [ ] **[JUAN]** Crear los 2 usuarios (tu correo y el de la otra persona) cuando la pantalla de registro exista
-- [ ] **[JUAN]** Prueba de fuego: registrar un gasto desde dos navegadores a la vez y ver que se sincroniza
+- [x] **[JUAN]** Crear los 2 usuarios (tu correo y el de la otra persona) cuando la pantalla de registro exista
+- [x] **[JUAN]** Prueba de fuego: registrar un gasto desde dos navegadores a la vez y ver que se sincroniza
 
 ## Fase 3 — PWA en los celulares
 
 - [x] **[CC]** Configurar la PWA: manifest, iconos, service worker (funciona aunque se vaya el internet un momento)
 - [x] **[CC]** Crear repositorio Git, primer commit y subir a GitHub → https://github.com/JuanGuevara2021/sobres-semanales
-- [ ] **[JUAN]** En Vercel: Add New Project → importar el repo de GitHub → pegar las 2 variables de entorno (URL y anon key) → Deploy
+- [x] **[JUAN]** En Vercel: Add New Project → importar el repo de GitHub → pegar las 2 variables de entorno (URL y anon key) → Deploy
 - [ ] **[JUAN]** Abrir la URL de Vercel en cada celular → menu del navegador → "Agregar a pantalla de inicio"
 - [ ] **[JUAN]** Usarla 2 semanas completas (el experimento que acordamos)
 
@@ -131,9 +131,9 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[CC]** Generar AAB firmado v1.0.0 (`android/app/release/sobres-semanales-v1.0.0.aab`, 3.2 MB)
 - [x] **[CC]** Script de build release (`build-release.sh`)
 - [x] **[CC]** Preparar textos de tienda: titulo, descripcion, data safety (`docs/GOOGLE_PLAY_LISTING.md`)
-- [ ] **[JUAN]** Crear cuenta de Google Play Developer ($25 USD, pago unico) → https://play.google.com/console/signup
-- [ ] **[JUAN/CC]** Crear icono 512x512 y feature graphic 1024x500
-- [ ] **[JUAN]** Tomar capturas de pantalla de la app (5-8 capturas)
+- [x] **[JUAN]** Crear cuenta de Google Play Developer ($25 USD, pago unico) — en verificacion
+- [x] **[JUAN/CC]** Crear icono 512x512 y feature graphic 1024x500
+- [x] **[JUAN]** Tomar capturas de pantalla de la app (9 capturas en `store-assets/`)
 - [ ] **[JUAN]** Subir AAB y assets a Google Play Console
 - [ ] **[JUAN]** Llenar formularios: clasificacion, declaracion de datos (guia en `docs/GOOGLE_PLAY_LISTING.md`)
 - [ ] **[JUAN]** Pegar URLs: `https://sobres-semanales.vercel.app/terminos.html` y `/privacidad.html`
@@ -141,7 +141,7 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 
 #### Fase C4 — Monetizacion base (EN PROGRESO)
 
-- [ ] **[JUAN]** Crear cuenta en Google AdMob (admob.google.com, gratis)
+- [x] **[JUAN]** Crear cuenta en Google AdMob (admob.google.com, gratis)
 - [x] **[CC]** Instalar plugin Capacitor para AdMob (`@capacitor-community/admob`)
 - [x] **[CC]** Modulo `src/lib/ads.js`: logica centralizada de ads por pilar
 - [x] **[CC]** Configurar banner (abajo del contenido) — escalado por pilar
@@ -156,9 +156,10 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[CC]** Exportar gastos a CSV (funcion Pro)
 - [x] **[CC]** Pro = sin anuncios (ads se ocultan automaticamente)
 - [x] **[CC]** Banner dorado "Hazte Pro" en Ajustes (solo version gratuita)
-- [ ] **[JUAN]** Crear cuenta en RevenueCat (revenuecat.com, gratis hasta $2.5k/mes)
-- [ ] **[JUAN]** En RevenueCat: crear app Android, crear entitlement "pro", crear producto "sobres_pro_anual"
-- [ ] **[CC]** Configurar API key real de RevenueCat en `src/lib/pro.js`
+- [x] **[JUAN]** Crear cuenta en RevenueCat (revenuecat.com, gratis hasta $2.5k/mes)
+- [x] **[JUAN]** En RevenueCat: crear app Android, crear entitlement "pro", crear producto "sobres_pro_anual"
+- [x] **[CC]** Configurar API key real de RevenueCat en `src/lib/pro.js`
+- [x] **[CC]** Cambiar `isTesting: true` a produccion en `ads.js` (auditoria 2026-06-28)
 - [ ] **[JUAN]** En Google Play Console: crear suscripcion "sobres_pro_anual" ($120 MXN/año)
 
 #### Fase C5 — Feedback y bugs de usuarios (EN PROGRESO)
@@ -169,7 +170,7 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [ ] **[JUAN]** Crear correo privacidad@sobressemanales.com (puede ser alias de Gmail)
 - [x] **[CC]** Integrar Firebase Crashlytics (`src/lib/crashlytics.js`, gradle configurado)
 - [x] **[CC]** Prompt de resena en Google Play (`src/lib/review.js`, despues de 14 dias, 1 vez)
-- [ ] **[JUAN]** Crear proyecto Firebase y descargar `google-services.json` a `android/app/`
+- [x] **[JUAN]** Crear proyecto Firebase y descargar `google-services.json` a `android/app/`
 
 #### Fase C6 — Landing page y presencia
 
@@ -195,6 +196,12 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [ ] **[CC]** Enviar custom signals a AdMob (anonimizados, sin datos personales)
 - [ ] A/B testing de formatos y frecuencia
 - [ ] Medir eCPM real vs generico
+
+#### Fase C8b — Analytics y metricas (mes 3-6)
+
+- [ ] **[CC]** Integrar Firebase Analytics o similar para medir retencion y conversion
+- [ ] **[CC]** Eventos clave: registro, primer gasto, cierre de semana, compra Pro
+- [ ] **[JUAN]** Revisar dashboard de metricas mensualmente
 
 #### Fase C9 — Expansion hispanoamerica (ano 2-3)
 

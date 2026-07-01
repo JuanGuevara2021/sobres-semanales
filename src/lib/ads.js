@@ -58,7 +58,7 @@ export async function prepareInterstitial(pilar) {
   const adMob = await getAdMob();
   if (!adMob) return;
   try {
-    await adMob.prepareInterstitial({ adId: AD_IDS.interstitial, isTesting: true });
+    await adMob.prepareInterstitial({ adId: AD_IDS.interstitial });
     interstitialReady = true;
   } catch {
     interstitialReady = false;
