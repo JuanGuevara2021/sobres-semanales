@@ -43,7 +43,7 @@ const TEMAS = {
   oscuro: {
     label: "Oscuro", paper: "#16171F", line: "#2A2C3A", card: "#1E2030",
     ink: "#E0DEF0", inkSoft: "#8E8CA4", green: "#34D399", amber: "#FBBF24",
-    red: "#F87171", flap: "#2A2C3A",
+    red: "#F87171", flap: "#2A2C3A", accent: "#3B3D52",
     bg: "#16171F",
   },
   coquette: {
@@ -79,7 +79,7 @@ const TEMAS = {
   medianoche: {
     label: "Noche", paper: "#0F172A", line: "#1E293B", card: "#1E293B",
     ink: "#E2E8F0", inkSoft: "#94A3B8", green: "#22D3EE", amber: "#FBBF24",
-    red: "#FB7185", flap: "#334155", pro: true,
+    red: "#FB7185", flap: "#334155", accent: "#3B4C63", pro: true,
     bg: "#0F172A",
   },
 };
@@ -447,7 +447,7 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClo
         <div className="flex flex-wrap gap-1.5 mb-3">
           {gastables.map((s) => (
             <button key={s.id} onClick={() => seleccionarSobre(s.id)} className="chip"
-              style={!fueraDeSobres && sobreId === s.id ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
+              style={!fueraDeSobres && sobreId === s.id ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" } : {}}>
               {s.emoji} {s.nombre}
             </button>
           ))}
@@ -457,7 +457,7 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClo
               🐷 {s.nombre}
             </button>
           ))}
-          <button onClick={marcarFuera} className="chip" style={fueraDeSobres ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
+          <button onClick={marcarFuera} className="chip" style={fueraDeSobres ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" } : {}}>
             🚫 Fuera de sobres
           </button>
         </div>
@@ -476,7 +476,7 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClo
         <div className="flex flex-wrap gap-1.5 mb-3">
           {MEDIOS.map((m) => (
             <button key={m} onClick={() => { setMedio(m); if (m !== "credito") setTarjetaId(""); }} className="chip"
-              style={medio === m ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
+              style={medio === m ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" } : {}}>
               {MEDIOS_LABEL[m]}
             </button>
           ))}
@@ -618,7 +618,7 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
       </div>
 
       {/* Resumen con desglose por categoria */}
-      <div className="rounded-2xl p-4 mb-3" style={{ background: "var(--ink)" }}>
+      <div className="rounded-2xl p-4 mb-3" style={{ background: "var(--accent)" }}>
         <div className="text-xs font-semibold" style={{ color: "rgba(255,255,255,.65)" }}>
           {isCurrent ? "Te queda esta semana" : "Quedo esta semana"}
         </div>
@@ -725,7 +725,7 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
         <div className="flex gap-1">
           {[["todos", "Todos"], ["sobres", "Sobres"], ["fuera", "Fuera"]].map(([v, l]) => (
             <button key={v} onClick={() => setFiltro(v)} className="text-[10px] font-semibold px-2 py-1 rounded-full"
-              style={filtro === v ? { background: "var(--ink)", color: "#fff" } : { background: "var(--line)", color: "var(--ink)" }}>
+              style={filtro === v ? { background: "var(--accent)", color: "#fff" } : { background: "var(--line)", color: "var(--ink)" }}>
               {l}
             </button>
           ))}
@@ -1050,7 +1050,7 @@ function TabLibreta({ sobres, gastos, tarjetas, onEditGasto, onDelete }) {
         <div className="flex gap-1">
           {[["todos", "Todos"], ["sobres", "Sobres"], ["fuera", "Fuera"]].map(([v, l]) => (
             <button key={v} onClick={() => setFiltro(v)} className="text-[10px] font-semibold px-2 py-1 rounded-full"
-              style={filtro === v ? { background: "var(--ink)", color: "#fff" } : { background: "var(--line)", color: "var(--ink)" }}>
+              style={filtro === v ? { background: "var(--accent)", color: "#fff" } : { background: "var(--line)", color: "var(--ink)" }}>
               {l}
             </button>
           ))}
@@ -1435,7 +1435,7 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
           <div className="flex flex-wrap gap-1.5 mb-3">
             {[["semanal", "Semanal"], ["quincenal", "Quincenal"], ["mensual", "Mensual"]].map(([v, l]) => (
               <button key={v} onClick={() => setFrecuencia(v)} className="chip"
-                style={frecuencia === v ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
+                style={frecuencia === v ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" } : {}}>
                 {l}
               </button>
             ))}
@@ -1447,7 +1447,7 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {DIAS.map((d, i) => (
                   <button key={i} onClick={() => setDiaPago(String(i))} className="chip"
-                    style={diaPago === String(i) ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
+                    style={diaPago === String(i) ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" } : {}}>
                     {d}
                   </button>
                 ))}
@@ -1481,12 +1481,12 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
           <div className="flex flex-wrap gap-1.5 mb-3">
             {gastables.map((s) => (
               <button key={s.id} onClick={() => setSobreId(s.id)} className="chip"
-                style={sobreId === s.id ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
+                style={sobreId === s.id ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" } : {}}>
                 {s.emoji} {s.nombre}
               </button>
             ))}
             <button onClick={() => setSobreId("")} className="chip"
-              style={!sobreId ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
+              style={!sobreId ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" } : {}}>
               🚫 Fuera de sobres
             </button>
           </div>
@@ -1505,7 +1505,7 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
           <div className="flex flex-wrap gap-1.5 mb-3">
             {MEDIOS.map((m) => (
               <button key={m} onClick={() => { setMedio(m); if (m !== "credito") setPagoTarjetaId(""); }} className="chip"
-                style={medio === m ? { background: "var(--ink)", color: "#fff", borderColor: "var(--ink)" } : {}}>
+                style={medio === m ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" } : {}}>
                 {MEDIOS_LABEL[m]}
               </button>
             ))}
@@ -1691,7 +1691,7 @@ function TabAnalisis({ gastos, sobres, tarjetas, presupSemanal, onNavToWeek, ini
       <div className="flex flex-wrap gap-1.5 mb-2">
         {[["semana", "Esta sem"], ["sem_pasada", "Pasada"], ["2sem", "2 sem"], ["4sem", "4 sem"], ["mes", "Mes"], ["rango", "Rango"]].map(([v, l]) => (
           <button key={v} className="text-xs font-semibold py-1.5 px-3 rounded-xl"
-            style={periodo === v ? { background: "var(--ink)", color: "#fff" } : { background: "var(--card)", color: "var(--ink)", border: "1px solid var(--line)" }}
+            style={periodo === v ? { background: "var(--accent)", color: "#fff" } : { background: "var(--card)", color: "var(--ink)", border: "1px solid var(--line)" }}
             onClick={() => setPeriodo(v)}>{l}</button>
         ))}
       </div>
@@ -1771,7 +1771,7 @@ function TabAnalisis({ gastos, sobres, tarjetas, presupSemanal, onNavToWeek, ini
           <div className="flex gap-1">
             {[["semana", "Sem"], ["mes", "Mes"]].map(([v, l]) => (
               <button key={v} className="text-[10px] font-semibold px-2 py-1 rounded-full"
-                style={vistaTemp === v ? { background: "var(--ink)", color: "#fff" } : { background: "var(--line)", color: "var(--ink)" }}
+                style={vistaTemp === v ? { background: "var(--accent)", color: "#fff" } : { background: "var(--line)", color: "var(--ink)" }}
                 onClick={() => setVistaTemp(v)}>{l}</button>
             ))}
           </div>
@@ -2180,7 +2180,6 @@ function AppMain() {
   const [showPagoForm, setShowPagoForm] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [fondoCustom, setFondoCustom] = useState(() => localStorage.getItem("sobres_fondo") || "");
-  const [showTour, setShowTour] = useState(needsTour);
   const [pilar, setPilar] = useState(esPublica ? (perfil?.pilar_actual || 1) : 4);
   const [showTransicion, setShowTransicion] = useState(null);
   const [esPro, setEsPro] = useState(!esPublica || !!perfil?.es_pro);
@@ -2382,7 +2381,6 @@ function AppMain() {
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: "#F6F4ED" }}><div className="text-sm" style={{ color: "#5A6B85" }}>Abriendo tu libreta...</div></div>;
-  if (showTour) return <WelcomeTour onDone={() => setShowTour(false)} />;
 
   const ALL_TABS = [
     { id: "semana", label: "Semana", Icon: Notebook },
@@ -2402,7 +2400,7 @@ function AppMain() {
     <div className={`app-root md3 min-h-screen${fondoCustom ? " has-bg" : ""}`} style={{
       "--paper": temaObj.paper, "--line": temaObj.line, "--card": temaObj.card,
       "--ink": temaObj.ink, "--ink-soft": temaObj.inkSoft, "--green": temaObj.green,
-      "--amber": temaObj.amber, "--red": temaObj.red, "--flap": temaObj.flap,
+      "--amber": temaObj.amber, "--red": temaObj.red, "--flap": temaObj.flap, "--accent": temaObj.accent || temaObj.ink,
       background: fondoCustom ? `url(${fondoCustom}) center/cover fixed` : temaObj.bg,
     }}>
       <style>{`
@@ -2516,6 +2514,7 @@ function AppContent() {
   const { session, perfil, cargando } = useAuth();
   const [pinOk, setPinOk] = useState(!hasPin() || isUnlocked());
   const [showLogin, setShowLogin] = useState(false);
+  const [tourDone, setTourDone] = useState(!needsTour());
 
   if (cargando) return <div className="min-h-screen flex items-center justify-center" style={{ background: "#F6F4ED" }}><div className="text-sm" style={{ color: "#5A6B85" }}>Cargando...</div></div>;
   if (!session) {
@@ -2523,6 +2522,7 @@ function AppContent() {
     return <Login />;
   }
   if (!perfil) return <OnboardingWizard />;
+  if (!tourDone) return <WelcomeTour onDone={() => { markTourDone(); setTourDone(true); }} />;
   if (hasPin() && !pinOk) return <PinLock nombre={perfil.nombre} onUnlock={() => setPinOk(true)} />;
   return <CuentaProvider cuentaId={perfil.cuenta_id}><AppMain /></CuentaProvider>;
 }

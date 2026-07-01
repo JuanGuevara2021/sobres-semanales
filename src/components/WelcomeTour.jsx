@@ -27,6 +27,11 @@ const slides = [
     desc: "Al cerrar la semana, lo que no gastaste de sobres tipo 'ahorro' pasa al cochinito automaticamente. Sin esfuerzo.",
   },
   {
+    emoji: "🔄",
+    title: "Sobres que acumulan",
+    desc: "Los sobres tipo 'acumula' guardan su saldo entre semanas. Perfectos para gastos que no son cada semana, como salidas o ropa.",
+  },
+  {
     emoji: "💳",
     title: "Tarjetas y pagos recurrentes",
     desc: "Registra tus tarjetas de credito, configura pagos recurrentes y nunca olvides una fecha de pago. Todo en un solo lugar.",
