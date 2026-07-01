@@ -96,27 +96,29 @@ function getPagosProximos(pagos, gastos, weekStartOf, weekOf) {
   const anioHoy = hoy.getFullYear();
   const wsHoy = toStr(weekStartOf(hoy));
   const cercaDeDia = (dia) => { const d = dia - diaHoy; return d >= -2 && d <= 3; };
-  return pagos.filter((p) => {
-    if (!p.activo) return false;
-    if (p.categoria === "tarjetas") return false;
-    if (p.pospuesto_hasta && p.pospuesto_hasta >= toStr(hoy)) return false;
+  return pagos.flatMap((p) => {
+    if (!p.activo) return [];
+    if (p.categoria === "tarjetas") return [];
+    if (p.pospuesto_hasta && p.pospuesto_hasta >= toStr(hoy)) return [];
     if (p.frecuencia === "semanal") {
-      if (p.dia_pago != null && diaSemHoy !== p.dia_pago) return false;
-      return !gastos.some((g) => g.nota === p.nombre && weekOf(g.fecha) === wsHoy);
+      if (p.dia_pago != null && diaSemHoy !== p.dia_pago) return [];
+      if (gastos.some((g) => g.nota === p.nombre && weekOf(g.fecha) === wsHoy)) return [];
+      return [{ ...p, _diaProximo: p.dia_pago }];
     }
     if (p.frecuencia === "quincenal") {
       const dia1 = p.dia_pago || 1;
       const dia2 = p.dia_pago_2 || 15;
-      if (!cercaDeDia(dia1) && !cercaDeDia(dia2)) return false;
+      if (!cercaDeDia(dia1) && !cercaDeDia(dia2)) return [];
       const pagosEsteMes = gastos.filter((g) => g.nota === p.nombre && fromStr(g.fecha).getMonth() === mesHoy && fromStr(g.fecha).getFullYear() === anioHoy);
       const medio = Math.round((dia1 + dia2) / 2);
-      if (cercaDeDia(dia1) && !pagosEsteMes.some((g) => fromStr(g.fecha).getDate() <= medio)) return true;
-      if (cercaDeDia(dia2) && !pagosEsteMes.some((g) => fromStr(g.fecha).getDate() > medio)) return true;
-      return false;
+      if (cercaDeDia(dia1) && !pagosEsteMes.some((g) => fromStr(g.fecha).getDate() <= medio)) return [{ ...p, _diaProximo: dia1 }];
+      if (cercaDeDia(dia2) && !pagosEsteMes.some((g) => fromStr(g.fecha).getDate() > medio)) return [{ ...p, _diaProximo: dia2 }];
+      return [];
     }
     const dia = p.dia_pago || 1;
-    if (!cercaDeDia(dia)) return false;
-    return !gastos.some((g) => g.nota === p.nombre && fromStr(g.fecha).getMonth() === mesHoy && fromStr(g.fecha).getFullYear() === anioHoy);
+    if (!cercaDeDia(dia)) return [];
+    if (gastos.some((g) => g.nota === p.nombre && fromStr(g.fecha).getMonth() === mesHoy && fromStr(g.fecha).getFullYear() === anioHoy)) return [];
+    return [{ ...p, _diaProximo: dia }];
   });
 }
 
@@ -676,7 +678,7 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{p.nombre}</div>
             <div className="text-xs" style={{ color: "var(--ink-soft)" }}>
-              {money(Number(p.monto_estimado))} · {FREQ_LABEL[p.frecuencia] || "Mensual"}{p.dia_pago ? ` · dia ${p.dia_pago}` : ""}
+              {money(Number(p.monto_estimado))} · {FREQ_LABEL[p.frecuencia] || "Mensual"}{p._diaProximo != null ? ` · dia ${p._diaProximo}` : ""}
             </div>
           </div>
           <button onClick={() => onPagar(p)} className="text-xs font-bold px-2.5 py-1.5 rounded-lg" style={{ background: "var(--green)", color: "#fff" }}>Ya pague</button>
