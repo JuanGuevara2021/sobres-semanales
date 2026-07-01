@@ -3,8 +3,7 @@
   "appName": "Sobres Semanales",
   "webDir": "dist",
   "server": {
-    "androidScheme": "https",
-    "url": "https://sobres-semanales.vercel.app"
+    "androidScheme": "https"
   },
   "plugins": {
     "SplashScreen": {
