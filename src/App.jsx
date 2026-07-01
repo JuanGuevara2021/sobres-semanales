@@ -6,12 +6,12 @@ import { toStr, fromStr, addDays, MESES, DIAS, DIAS_INICIO_OPTIONS, COLORES_CATE
 import Login from "./components/Login";
 import Landing from "./components/Landing";
 import OnboardingWizard from "./components/OnboardingWizard";
-import PinLock, { hasPin, isUnlocked, setPin, clearUnlock } from "./components/PinLock";
+import PinLock, { hasPin, isUnlocked, setPin, getPin, clearUnlock } from "./components/PinLock";
 import WelcomeTour, { needsTour, markTourDone } from "./components/WelcomeTour";
 import { esPublica } from "./lib/appMode";
 import { getTabsVisibles, calcPilarSugerido, getTransicion } from "./lib/pilares";
 import { initAds, showBanner, hideBanner, prepareInterstitial, showInterstitial, shouldShowAds } from "./lib/ads";
-import { exportGastosCSV, purchasePro, restorePurchases } from "./lib/pro";
+import { exportGastosCSV, purchasePro, restorePurchases, isProAvailable, PRECIO_PRO, APP_VERSION } from "./lib/pro";
 import { initCrashlytics, logError } from "./lib/crashlytics";
 import { markFirstUse, tryRequestReview } from "./lib/review";
 import {
@@ -231,7 +231,6 @@ async function autoClose(sobres, gastos, cierresExistentes, cuentaId, weekStartO
    Modal Pro
    ============================================================ */
 function ProModal({ onClose, onUpgrade }) {
-  const { money } = useCuenta();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -287,19 +286,26 @@ function ProModal({ onClose, onUpgrade }) {
         </div>
 
         <div className="text-center mb-4">
-          <div className="text-2xl font-extrabold" style={{ color: "var(--green)" }}>$120 MXN<span className="text-sm font-normal" style={{ color: "var(--ink-soft)" }}> / año</span></div>
-          <div className="text-xs" style={{ color: "var(--ink-soft)" }}>Solo $10/mes — menos que un cafe</div>
+          <div className="text-2xl font-extrabold" style={{ color: "var(--green)" }}>{PRECIO_PRO}<span className="text-sm font-normal" style={{ color: "var(--ink-soft)" }}> / año</span></div>
+          <div className="text-xs" style={{ color: "var(--ink-soft)" }}>Solo $10/mes — menos que un café</div>
+          <div className="text-xs mt-1" style={{ color: "var(--ink-soft)" }}>Cancela cuando quieras desde Google Play</div>
         </div>
 
         {error && <div className="text-xs text-center mb-3" style={{ color: "var(--red)" }}>{error}</div>}
 
-        <button onClick={handlePurchase} disabled={loading} className="w-full py-3.5 font-bold text-sm md3-btn-filled mb-2"
-          style={{ background: "var(--green)", color: "#fff", opacity: loading ? 0.6 : 1 }}>
+        {!isProAvailable() && (
+          <div className="text-xs text-center mb-3 rounded-xl px-3 py-2" style={{ background: "var(--paper)", color: "var(--ink-soft)", border: "1px solid var(--line)" }}>
+            Disponible solo en la app de Google Play
+          </div>
+        )}
+
+        <button onClick={handlePurchase} disabled={loading || !isProAvailable()} className="w-full py-3.5 font-bold text-sm md3-btn-filled mb-2"
+          style={{ background: "var(--green)", color: "#fff", opacity: loading || !isProAvailable() ? 0.6 : 1 }}>
           {loading ? "Procesando..." : "Suscribirse a Pro"}
         </button>
-        <button onClick={handleRestore} disabled={loading} className="w-full py-2.5 text-xs font-semibold"
+        <button onClick={handleRestore} disabled={loading || !isProAvailable()} className="w-full py-2.5 text-xs font-semibold"
           style={{ color: "var(--ink-soft)" }}>
-          Ya compre Pro — restaurar compra
+          Ya compré Pro — restaurar compra
         </button>
       </div>
     </div>
@@ -313,7 +319,7 @@ function ProModal({ onClose, onUpgrade }) {
 function PilarTransicion({ transicion, onContinuar }) {
   if (!transicion) return null;
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center px-6 md3-sheet-backdrop"`}>
+    <div className={`fixed inset-0 z-50 flex items-center justify-center px-6 md3-sheet-backdrop`}>
       <div className="w-full max-w-sm p-6 text-center md3-card" style={{ background: "var(--card)", borderRadius: "28px" }}>
         <div className="text-5xl mb-3">{transicion.emoji}</div>
         <h2 className="text-xl font-extrabold mb-2" style={{ color: "var(--ink)" }}>{transicion.titulo}</h2>
@@ -353,7 +359,7 @@ function GuiaPilar1({ gastosCount, onAvanzar }) {
 function SobreCard({ sobre, gastado }) {
   const { money, catLabel, catColor } = useCuenta();
   const presup = Number(sobre.aportacion_semanal);
-  const catDef = sobre.categoria_default_nombre || sobre.categoria_default;
+  const catDef = sobre.categoria_default;
   const disponible = Number(sobre.saldo_acumulado) + presup - gastado;
   const pct = presup > 0 ? Math.max(0, Math.min(1, disponible / presup)) : 0;
   const estado = disponible < 0 ? "rojo" : pct <= 0.25 ? "ambar" : "verde";
@@ -389,7 +395,7 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClo
   const isEdit = !!editingId;
   const hoy = toStr(new Date());
   const gastables = sobres.filter((s) => !s.es_ahorro);
-  const catDef = (s) => s.categoria_default_nombre || s.categoria_default;
+  const catDef = (s) => s.categoria_default;
   const [monto, setMonto] = useState(prefill?.monto ? String(prefill.monto) : "");
   const [sobreId, setSobreId] = useState(prefill?.fuera ? "" : prefill?.sobre_id || (isEdit ? "" : gastables[0]?.id || ""));
   const [fueraDeSobres, setFueraDeSobres] = useState(prefill?.fuera || (isEdit && !prefill?.sobre_id));
@@ -425,8 +431,8 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClo
   };
 
   return (
-    <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop"`} onClick={onClose}>
-      <div className={`w-full max-w-md p-4 pb-6 overflow-y-auto md3-sheet"`} style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
+    <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop`} onClick={onClose}>
+      <div className={`w-full max-w-md p-4 pb-6 overflow-y-auto md3-sheet`} style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
         <div className="md3-drag-handle" />
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>{isEdit ? "Modificar gasto" : "Registrar gasto"}</h2>
@@ -506,7 +512,7 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClo
           </div>
         </div>
         {error && <div className="text-xs mb-2" style={{ color: "var(--red)" }}>{error}</div>}
-        <button onClick={submit} disabled={guardando} className={`w-full py-3 font-bold text-sm md3-btn-filled"`}
+        <button onClick={submit} disabled={guardando} className={`w-full py-3 font-bold text-sm md3-btn-filled`}
           style={{ background: "var(--green)", color: "#fff", opacity: guardando ? 0.6 : 1 }}>
           {guardando ? "Guardando..." : isEdit ? "Guardar cambios" : "Guardar gasto"}
         </button>
@@ -532,8 +538,8 @@ function ConfigSaldosModal({ sobres, onSave, onClose }) {
   };
 
   return (
-    <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop"`} onClick={onClose}>
-      <div className={`w-full max-w-md p-4 pb-6 overflow-y-auto md3-sheet"`} style={{ background: "var(--card)", maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()}>
+    <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop`} onClick={onClose}>
+      <div className={`w-full max-w-md p-4 pb-6 overflow-y-auto md3-sheet`} style={{ background: "var(--card)", maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()}>
         <div className="md3-drag-handle" />
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>Configurar saldos</h2>
@@ -554,7 +560,7 @@ function ConfigSaldosModal({ sobres, onSave, onClose }) {
               style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }} />
           </div>
         ))}
-        <button onClick={submit} disabled={guardando} className={`w-full py-3 font-bold text-sm mt-3 md3-btn-filled"`}
+        <button onClick={submit} disabled={guardando} className={`w-full py-3 font-bold text-sm mt-3 md3-btn-filled`}
           style={{ background: "var(--green)", color: "#fff", opacity: guardando ? 0.6 : 1 }}>
           {guardando ? "Guardando..." : "Guardar saldos"}
         </button>
@@ -797,7 +803,7 @@ function TabSobres({ sobres, gastos, cierres, presupSemanal, onSaveSobre, onDele
   const gastables = sobres.filter((s) => !s.es_ahorro);
   const sumaSobres = sobres.reduce((a, s) => a + Number(s.aportacion_semanal), 0);
 
-  const startEdit = (s) => { setEditing(s.id); setNombre(s.nombre); setEmoji(s.emoji); setAportacion(String(s.aportacion_semanal)); setTipoCierre(s.tipo_cierre); setCatDefault(s.categoria_default_nombre || s.categoria_default); setMsg(""); };
+  const startEdit = (s) => { setEditing(s.id); setNombre(s.nombre); setEmoji(s.emoji); setAportacion(String(s.aportacion_semanal)); setTipoCierre(s.tipo_cierre); setCatDefault(s.categoria_default); setMsg(""); };
   const startNew = () => { setEditing("nuevo"); setNombre(""); setEmoji(EMOJIS[0]); setAportacion(""); setTipoCierre("ahorro"); setCatDefault(categorias[0]?.nombre || "casa"); setSaldoInicial("0"); setMsg(""); };
   const cancel = () => setEditing(null);
 
@@ -806,7 +812,7 @@ function TabSobres({ sobres, gastos, cierres, presupSemanal, onSaveSobre, onDele
     if (!nombre.trim()) return setMsg("Ponle nombre al sobre.");
     if (isNaN(p) || p < 0) return setMsg("Aportacion invalida.");
     try {
-      const payload = { id: editing === "nuevo" ? undefined : editing, nombre: nombre.trim(), emoji, aportacion_semanal: p, tipo_cierre: tipoCierre, categoria_default_nombre: catDefault };
+      const payload = { id: editing === "nuevo" ? undefined : editing, nombre: nombre.trim(), emoji, aportacion_semanal: p, tipo_cierre: tipoCierre, categoria_default: catDefault };
       if (editing === "nuevo") payload.saldo_inicial = parseFloat(saldoInicial) || 0;
       await onSaveSobre(payload);
       setEditing(null);
@@ -898,7 +904,7 @@ function TabSobres({ sobres, gastos, cierres, presupSemanal, onSaveSobre, onDele
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{s.nombre}</span>
-              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: (catColor[s.categoria_default_nombre || s.categoria_default] || "#666") + "18", color: catColor[s.categoria_default_nombre || s.categoria_default] || "#666" }}>{catLabel[s.categoria_default_nombre || s.categoria_default]}</span>
+              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: (catColor[s.categoria_default] || "#666") + "18", color: catColor[s.categoria_default] || "#666" }}>{catLabel[s.categoria_default]}</span>
             </div>
             <div className="text-xs num" style={{ color: "var(--ink-soft)" }}>{money(Number(s.aportacion_semanal))} / sem · {s.tipo_cierre === "acumula" ? "acumula" : "ahorro"}</div>
           </div>
@@ -1361,8 +1367,8 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
 
   function tarjetaForm() {
     return (
-      <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop"`} onClick={() => setEditTarjeta(null)}>
-        <div className={`w-full max-w-md p-4 pb-6 overflow-y-auto md3-sheet"`} style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
+      <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop`} onClick={() => setEditTarjeta(null)}>
+        <div className={`w-full max-w-md p-4 pb-6 overflow-y-auto md3-sheet`} style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
           <div className="md3-drag-handle" />
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>{editTarjeta === "nuevo" ? "Nueva tarjeta" : "Editar tarjeta"}</h2>
@@ -1407,8 +1413,8 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
 
   function pagoForm() {
     return (
-      <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop"`} onClick={() => setEditing(null)}>
-        <div className={`w-full max-w-md p-4 pb-6 overflow-y-auto md3-sheet"`} style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
+      <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop`} onClick={() => setEditing(null)}>
+        <div className={`w-full max-w-md p-4 pb-6 overflow-y-auto md3-sheet`} style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
           <div className="md3-drag-handle" />
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>{editing === "nuevo" ? "Nuevo pago recurrente" : "Editar pago recurrente"}</h2>
@@ -1526,7 +1532,7 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
           )}
 
           {msg && <div className="text-xs mb-2" style={{ color: "var(--red)" }}>{msg}</div>}
-          <button onClick={savePago} className={`w-full py-3 font-bold text-sm md3-btn-filled"`}
+          <button onClick={savePago} className={`w-full py-3 font-bold text-sm md3-btn-filled`}
             style={{ background: "var(--green)", color: "#fff" }}>
             {editing === "nuevo" ? "Agregar pago" : "Guardar cambios"}
           </button>
@@ -1935,8 +1941,8 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
   };
 
   return (
-    <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop"`} onClick={onClose}>
-      <div className={`w-full max-w-md p-4 pb-6 overflow-y-auto md3-sheet"`} style={{ background: "var(--card)", maxHeight: "80vh" }} onClick={(e) => e.stopPropagation()}>
+    <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop`} onClick={onClose}>
+      <div className={`w-full max-w-md p-4 pb-6 overflow-y-auto md3-sheet`} style={{ background: "var(--card)", maxHeight: "80vh" }} onClick={(e) => e.stopPropagation()}>
         <div className="md3-drag-handle" />
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-extrabold" style={{ color: "var(--ink)" }}>Ajustes</h2>
@@ -2038,16 +2044,34 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
                 <div className="text-xs" style={{ color: "var(--ink-soft)" }}>{pinActivo ? "Activado — se pide al abrir" : "Desactivado"}</div>
               </div>
               {pinActivo ? (
-                <button onClick={() => { setPin(null); clearUnlock(); setPinActivo(false); }} className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                <button onClick={() => setShowPinSetup("remove")} className="text-xs font-semibold px-3 py-1.5 rounded-lg"
                   style={{ color: "var(--red)", border: "1px solid var(--line)" }}>Quitar</button>
               ) : (
                 <button onClick={() => setShowPinSetup(true)} className="text-xs font-semibold px-3 py-1.5 rounded-lg"
                   style={{ color: "var(--green)", border: "1px solid var(--line)" }}>Activar</button>
               )}
             </div>
+          ) : showPinSetup === "remove" ? (
+            <div>
+              <div className="text-sm font-semibold mb-2" style={{ color: "var(--ink)" }}>Ingresa tu PIN actual para quitar</div>
+              <div className="flex gap-2 items-center">
+                <input type="password" inputMode="numeric" maxLength={4} pattern="[0-9]*" value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
+                  autoFocus className="w-24 rounded-lg px-3 py-2 text-center text-lg font-mono tracking-widest outline-none"
+                  style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--card)" }} />
+                <button onClick={() => {
+                  const stored = getPin();
+                  if (pinInput === stored) { setPin(null); clearUnlock(); setPinActivo(false); setShowPinSetup(false); setPinInput(""); }
+                  else { setPinInput(""); }
+                }}
+                  disabled={pinInput.length !== 4} className="text-xs font-bold px-3 py-2 rounded-lg"
+                  style={{ background: pinInput.length === 4 ? "var(--red)" : "var(--line)", color: pinInput.length === 4 ? "#fff" : "var(--ink-soft)" }}>Quitar PIN</button>
+                <button onClick={() => { setShowPinSetup(false); setPinInput(""); }} className="text-xs px-2 py-2" style={{ color: "var(--ink-soft)" }}>✕</button>
+              </div>
+            </div>
           ) : (
             <div>
-              <div className="text-sm font-semibold mb-2" style={{ color: "var(--ink)" }}>Elige un PIN de 4 digitos</div>
+              <div className="text-sm font-semibold mb-2" style={{ color: "var(--ink)" }}>Elige un PIN de 4 dígitos</div>
               <div className="flex gap-2 items-center">
                 <input type="password" inputMode="numeric" maxLength={4} pattern="[0-9]*" value={pinInput}
                   onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
@@ -2075,7 +2099,16 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
           {!esPro && <span className="text-sm">🔒</span>}
         </button>
 
-        {!esPro && (
+        {esPro ? (
+          <div className="w-full rounded-xl px-4 py-3 mb-2 flex items-center gap-3"
+            style={{ background: "linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,165,0,0.1))", border: "1px solid rgba(255,215,0,0.3)" }}>
+            <span className="text-xl">⭐</span>
+            <div className="text-left flex-1">
+              <div className="text-sm font-bold" style={{ color: "var(--ink)" }}>Tienes Sobres Pro</div>
+              <div className="text-xs" style={{ color: "var(--ink-soft)" }}>Sin anuncios · exportar · temas exclusivos</div>
+            </div>
+          </div>
+        ) : (
           <button onClick={onShowPro} className="w-full rounded-xl px-4 py-3 mb-2 flex items-center gap-3"
             style={{ background: "linear-gradient(135deg, #FFD700 0%, #FFA500 100%)", border: "none" }}>
             <span className="text-xl">⭐</span>
@@ -2083,7 +2116,7 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
               <div className="text-sm font-bold" style={{ color: "#1a1a1a" }}>Hazte Pro</div>
               <div className="text-xs" style={{ color: "#4a3500" }}>Sin anuncios + exportar + temas</div>
             </div>
-            <span className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: "rgba(0,0,0,.15)", color: "#1a1a1a" }}>$120/año</span>
+            <span className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: "rgba(0,0,0,.15)", color: "#1a1a1a" }}>{PRECIO_PRO}/año</span>
           </button>
         )}
 
@@ -2091,7 +2124,7 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
         <div className="space-y-2">
           <button onClick={() => {
             const info = [
-              `App: Sobres Semanales v1.0.0`,
+              `App: Sobres Semanales v${APP_VERSION}`,
               `Plataforma: ${navigator.userAgent}`,
               `Pantalla: ${screen.width}x${screen.height}`,
               `Fecha: ${new Date().toISOString()}`,
@@ -2116,7 +2149,7 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
         </div>
 
         <div className="text-center mt-6 mb-2">
-          <div className="text-[10px]" style={{ color: "var(--ink-soft)" }}>Sobres Semanales v1.0.0</div>
+          <div className="text-[10px]" style={{ color: "var(--ink-soft)" }}>Sobres Semanales v{APP_VERSION}</div>
         </div>
       </div>
     </div>
