@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { CuentaProvider, useCuenta } from "./contexts/CuentaContext";
 import { supabase } from "./lib/supabase";
 import { toStr, fromStr, addDays, MESES, DIAS, DIAS_INICIO_OPTIONS, COLORES_CATEGORIA } from "./lib/config";
+import { calcularCierres } from "./lib/cierres";
 import Login from "./components/Login";
 import Landing from "./components/Landing";
 import OnboardingWizard from "./components/OnboardingWizard";
@@ -171,63 +172,22 @@ function calcMSI(msi, pagoEsteMes = false) {
   return { estatus: "activo", pagados, meses, mensual, restante: mensual * (meses - pagados) };
 }
 
-/* ---------- cierre automatico v2.2 ---------- */
+/* ---------- cierre automatico v2.2 (calculo puro en lib/cierres.js) ---------- */
 async function autoClose(sobres, gastos, cierresExistentes, cuentaId, weekStartOf, weekOf) {
-  const todayWS = toStr(weekStartOf(new Date()));
-  const semanasConGastos = [...new Set(gastos.map((g) => weekOf(g.fecha)))]
-    .filter((ws) => ws < todayWS)
-    .sort();
-  const yaCerradas = new Set(cierresExistentes.map((c) => c.semana));
-
-  // Saldo corriente por sobre (arranca del valor en BD)
-  const saldoR = {};
-  for (const s of sobres) saldoR[s.id] = Number(s.saldo_acumulado) || 0;
-
-  const nuevos = [];
-  for (const ws of semanasConGastos) {
-    if (yaCerradas.has(ws)) continue;
-    const detalle = sobres
-      .filter((s) => !s.es_ahorro)
-      .map((s) => {
-        const gastado = gastos.filter((g) => g.sobre_id === s.id && weekOf(g.fecha) === ws).reduce((a, g) => a + Number(g.monto), 0);
-        const saldoInicio = saldoR[s.id];
-        let sobrante = 0;
-        if (s.tipo_cierre === "ahorro") {
-          const neto = saldoR[s.id] + Number(s.aportacion_semanal) - gastado;
-          if (neto >= 0) { sobrante = neto; saldoR[s.id] = 0; }
-          else { sobrante = 0; saldoR[s.id] = neto; }
-        } else {
-          saldoR[s.id] += Number(s.aportacion_semanal) - gastado;
-        }
-        return { sobre_id: s.id, nombre: s.nombre, emoji: s.emoji, aportacion: Number(s.aportacion_semanal), gastado, sobrante, tipo_cierre: s.tipo_cierre, saldo_inicio: saldoInicio };
-      });
-    const totalAAhorro = detalle.reduce((a, x) => a + x.sobrante, 0);
-    nuevos.push({ cuenta_id: cuentaId, semana: ws, detalle, total_a_ahorro: totalAAhorro });
-  }
+  const { nuevos, saldosActualizados, ahorroActualizado, totalAhorrado } = calcularCierres({ sobres, gastos, cierresExistentes, weekStartOf, weekOf });
   if (!nuevos.length) return { nuevos: [], totalAhorrado: 0 };
-  const { data: insertados, error } = await supabase.from("cierres").insert(nuevos).select();
+
+  const filas = nuevos.map((c) => ({ ...c, cuenta_id: cuentaId }));
+  const { data: insertados, error } = await supabase.from("cierres").insert(filas).select();
   if (error) { console.error("Error al cerrar semanas:", error); return { nuevos: [], totalAhorrado: 0 }; }
 
-  // Actualizar saldo_acumulado de TODOS los sobres (ahorro y acumula)
-  for (const s of sobres.filter((s) => !s.es_ahorro)) {
-    if (saldoR[s.id] !== Number(s.saldo_acumulado)) {
-      await supabase.from("sobres").update({ saldo_acumulado: saldoR[s.id] }).eq("id", s.id);
-    }
+  for (const u of saldosActualizados) {
+    await supabase.from("sobres").update({ saldo_acumulado: u.saldo_acumulado }).eq("id", u.sobre_id);
   }
-
-  // Actualizar Ahorro: aportacion propia + sobrantes recibidos - gastos desde ahorro
-  const sobreAhorro = sobres.find((s) => s.es_ahorro);
-  if (sobreAhorro) {
-    const totalAhorrado = nuevos.reduce((a, c) => a + c.total_a_ahorro, 0);
-    const ahorroAport = Number(sobreAhorro.aportacion_semanal) * nuevos.length;
-    const semanasCerradas = nuevos.map((c) => c.semana);
-    const gastadoDeAhorro = gastos
-      .filter((g) => g.sobre_id === sobreAhorro.id && semanasCerradas.includes(weekOf(g.fecha)))
-      .reduce((a, g) => a + Number(g.monto), 0);
-    const netChange = ahorroAport + totalAhorrado - gastadoDeAhorro;
-    if (netChange !== 0) await supabase.from("sobres").update({ saldo_acumulado: Math.max(0, Number(sobreAhorro.saldo_acumulado) + netChange) }).eq("id", sobreAhorro.id);
+  if (ahorroActualizado) {
+    await supabase.from("sobres").update({ saldo_acumulado: ahorroActualizado.saldo_acumulado }).eq("id", ahorroActualizado.sobre_id);
   }
-  return { nuevos: insertados || [], totalAhorrado: nuevos.reduce((a, c) => a + c.total_a_ahorro, 0) };
+  return { nuevos: insertados || [], totalAhorrado };
 }
 
 /* ============================================================
