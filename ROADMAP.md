@@ -217,6 +217,7 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[CC]** Extraer logica pura de cierres a `src/lib/cierres.js` (separada de Supabase)
 - [x] **[CC]** Suite Vitest: 26 tests de cierres semanales y helpers de semana (`npm test`)
 - [x] **[CC]** Tests para logica de MSI y pagos recurrentes: extraida a `src/lib/pagos.js`, 20 tests
+- [x] **[CC]** Smoke tests E2E con Playwright (`e2e/smoke.spec.js`, `npm run test:e2e`): login, credenciales invalidas, registrar/borrar gasto. Usuario de prueba: e2e-test-sobres@mailinator.com
 - [ ] **[CC]** Seguir modularizando `App.jsx` (2,300+ lineas): extraer TabAnalisis, TabPagos, Ajustes
 
 ---
@@ -248,6 +249,10 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 
 ### Bugs corregidos por Juan (2026-06-28)
 - [x] **[JUAN]** Sobres no se acumulaban correctamente (fix directo)
+
+### Bugs encontrados por los tests E2E (2026-07-01)
+- [x] **[CC]** Gasto recien registrado no aparecia en la libreta si el canal realtime aun no conectaba (ej. primer gasto tras onboarding); addGasto ahora actualiza el estado local de inmediato
+- [x] **[CC]** El OnboardingWizard aparecia por un instante al hacer login mientras cargaba el perfil; ahora se muestra "Cargando..." hasta resolver
 
 ---
 

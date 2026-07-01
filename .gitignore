@@ -12,6 +12,10 @@ dist/
 .DS_Store
 *.log
 
+# Playwright (reportes y trazas de tests E2E)
+test-results/
+playwright-report/
+
 # Archivos temporales y scripts de generacion
 scripts/
 

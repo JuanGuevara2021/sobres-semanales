@@ -2120,7 +2120,7 @@ function AppMain() {
     if (!cuentaId) return;
     const channel = supabase.channel("datos-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "gastos", filter: `cuenta_id=eq.${cuentaId}` }, (payload) => {
-        if (payload.eventType === "INSERT") setGastos((prev) => [payload.new, ...prev]);
+        if (payload.eventType === "INSERT") setGastos((prev) => (prev.some((g) => g.id === payload.new.id) ? prev : [payload.new, ...prev]));
         else if (payload.eventType === "DELETE") setGastos((prev) => prev.filter((g) => g.id !== payload.old.id));
         else if (payload.eventType === "UPDATE") setGastos((prev) => prev.map((g) => (g.id === payload.new.id ? payload.new : g)));
       })
@@ -2195,8 +2195,11 @@ function AppMain() {
   };
 
   const addGasto = async (gasto) => {
-    const { error } = await supabase.from("gastos").insert({ ...gasto, cuenta_id: cuentaId, usuario_id: perfil.user_id });
+    // Actualizacion local inmediata: no depender del evento realtime,
+    // que puede no estar conectado aun (ej. primer gasto tras onboarding)
+    const { data, error } = await supabase.from("gastos").insert({ ...gasto, cuenta_id: cuentaId, usuario_id: perfil.user_id }).select().single();
     if (error) throw error;
+    setGastos((prev) => (prev.some((g) => g.id === data.id) ? prev : [data, ...prev]));
     gastosCountRef.current += 1;
     if (!esPro && gastosCountRef.current % 5 === 0 && shouldShowAds(pilar)) {
       setTimeout(() => showInterstitial(pilar), 800);

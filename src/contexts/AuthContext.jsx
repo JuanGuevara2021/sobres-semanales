@@ -1,12 +1,16 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
-  const [perfil, setPerfil] = useState(null)
+  const [perfil, setPerfilState] = useState(null)
   const [cargando, setCargando] = useState(true)
+  // ref espejo de perfil: permite saber dentro del callback de auth
+  // si el perfil aun no se resuelve, sin problemas de closure
+  const perfilRef = useRef(null)
+  const setPerfil = (p) => { perfilRef.current = p; setPerfilState(p) }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -17,8 +21,12 @@ export function AuthProvider({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
-      if (session) cargarPerfil(session.user)
-      else {
+      if (session) {
+        // mientras el perfil no se resuelva, mostrar "Cargando..." en vez
+        // de dejar que aparezca el onboarding por un instante tras el login
+        if (!perfilRef.current) setCargando(true)
+        cargarPerfil(session.user)
+      } else {
         setPerfil(null)
         setCargando(false)
       }
