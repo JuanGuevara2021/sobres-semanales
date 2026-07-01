@@ -14,6 +14,7 @@ import { initAds, showBanner, hideBanner, prepareInterstitial, showInterstitial,
 import { exportGastosCSV, purchasePro, restorePurchases, isProAvailable, PRECIO_PRO, APP_VERSION } from "./lib/pro";
 import { initCrashlytics, logError } from "./lib/crashlytics";
 import { markFirstUse, tryRequestReview } from "./lib/review";
+import { initNotifications, programarNotificaciones, getDiasAntes, setDiasAntes, OPCIONES_ANTELACION } from "./lib/notifications";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, ReferenceLine, CartesianGrid, LabelList,
@@ -1896,7 +1897,7 @@ function TabAnalisis({ gastos, sobres, tarjetas, presupSemanal, onNavToWeek, ini
 }
 
 /* ---------- Ajustes (F6) ---------- */
-function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose, esPro, onShowPro, gastos, sobres }) {
+function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose, esPro, onShowPro, gastos, sobres, pagos, tarjetas }) {
   const { categorias, diaInicio, updateDiaInicio, addCategoria, removeCategoria } = useCuenta();
   const [newCatNombre, setNewCatNombre] = useState("");
   const [newCatColor, setNewCatColor] = useState(COLORES_CATEGORIA[0]);
@@ -2086,6 +2087,23 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
           )}
         </div>
 
+        <p className="text-xs font-bold mb-2 mt-5" style={{ color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Notificaciones</p>
+        <div className="rounded-xl p-3 mb-5" style={{ background: "var(--paper)", border: "1px solid var(--line)" }}>
+          <div className="text-sm font-semibold mb-1" style={{ color: "var(--ink)" }}>Recordatorio de pagos</div>
+          <div className="text-xs mb-2" style={{ color: "var(--ink-soft)" }}>Cuando avisarte de un pago proximo</div>
+          <div className="flex flex-wrap gap-1.5">
+            {OPCIONES_ANTELACION.map((opt) => (
+              <button key={opt.value} onClick={() => { setDiasAntes(opt.value); programarNotificaciones(pagos, tarjetas); }}
+                className="text-xs font-semibold py-1.5 px-3 rounded-xl"
+                style={getDiasAntes() === opt.value
+                  ? { background: "var(--green)", color: "#fff" }
+                  : { background: "var(--card)", color: "var(--ink)", border: "1px solid var(--line)" }}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <p className="text-xs font-bold mb-2 mt-5" style={{ color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Datos</p>
         <button onClick={() => {
           if (!esPro) { onShowPro(); return; }
@@ -2204,6 +2222,8 @@ function AppMain() {
       if (cuentaRes.data.inicio_sobres) setInicioSobres(cuentaRes.data.inicio_sobres);
     }
     setLoading(false);
+
+    programarNotificaciones(pagosRes.data || [], tarjetasRes.data || []);
 
     const result = await autoClose(sobresRes.data || [], gastosRes.data || [], cierresRes.data || [], cuentaId, weekStartOf, weekOf);
     if (result.nuevos.length > 0) {
@@ -2479,7 +2499,7 @@ function AppMain() {
       </div>
 
       {showPagoForm && <GastoForm sobres={sobres} tarjetas={tarjetas} viewedWS={viewedWS} isCurrent={true} onAdd={confirmarPago} onClose={() => setShowPagoForm(null)} prefill={showPagoForm} />}
-      {showSettings && <SettingsPanel tema={tema} onChangeTema={cambiarTema} fondoCustom={fondoCustom} onChangeFondo={cambiarFondo} onClose={() => setShowSettings(false)} esPro={esPro} onShowPro={() => { setShowSettings(false); setShowProModal(true); }} gastos={gastos} sobres={sobres} />}
+      {showSettings && <SettingsPanel tema={tema} onChangeTema={cambiarTema} fondoCustom={fondoCustom} onChangeFondo={cambiarFondo} onClose={() => setShowSettings(false)} esPro={esPro} onShowPro={() => { setShowSettings(false); setShowProModal(true); }} gastos={gastos} sobres={sobres} pagos={pagos} tarjetas={tarjetas} />}
       {showProModal && <ProModal onClose={() => setShowProModal(false)} onUpgrade={handleUpgradePro} />}
 
       <PilarTransicion transicion={showTransicion} onContinuar={() => {
