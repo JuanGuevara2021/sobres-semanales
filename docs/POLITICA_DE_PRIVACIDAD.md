@@ -36,9 +36,11 @@ Correo de contacto: privacidad@sobressemanales.com
 | Dato | Como lo obtenemos | Para que |
 |------|-------------------|---------|
 | Pais y ciudad aproximada | Direccion IP (a traves de Google AdMob) | Mostrar anuncios relevantes por region |
-| Modelo de dispositivo y version de Android | Google AdMob SDK | Compatibilidad y optimizacion de anuncios |
+| Modelo de dispositivo y version de Android | Google AdMob SDK, Firebase Crashlytics | Compatibilidad, optimizacion de anuncios y diagnostico de errores |
 | Identificador de publicidad (GAID) | Google AdMob SDK | Personalizacion de anuncios (el usuario puede desactivarlo en Ajustes de Android) |
 | Datos de uso de la App (pantallas visitadas, tiempo de sesion) | Google AdMob SDK | Optimizacion de anuncios |
+| Registros de errores y fallos (crash logs) | Firebase Crashlytics | Identificar y corregir problemas tecnicos |
+| Historial de compras in-app | RevenueCat SDK | Gestionar suscripciones (Plan Pro) |
 
 ### 3.3 Datos que NO recopilamos
 
@@ -80,6 +82,8 @@ Para mostrarte anuncios mas relevantes, enviamos las siguientes **senales anonim
 |---------|-----------------|---------|
 | **Supabase** (backend/base de datos) | Todos los datos de tu cuenta (encriptados en transito y en reposo) | Almacenamiento y sincronizacion |
 | **Google AdMob** (publicidad) | Senales anonimizadas de categoria/nivel, GAID, IP, datos del dispositivo | Mostrar anuncios relevantes |
+| **Firebase Crashlytics** (diagnostico) | Registros de fallos, modelo de dispositivo, version de Android | Identificar y corregir errores |
+| **RevenueCat** (suscripciones) | ID de usuario anonimizado, historial de compras in-app | Gestionar suscripcion Pro |
 | **Google Play** (pagos) | Datos de transaccion de suscripcion | Procesar pagos de Plan Pro |
 | **Vercel** (alojamiento web) | Solicitudes HTTP (version web/PWA) | Servir la aplicacion web |
 
