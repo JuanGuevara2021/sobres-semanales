@@ -216,8 +216,8 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 ### Tests (2026-07-01)
 - [x] **[CC]** Extraer logica pura de cierres a `src/lib/cierres.js` (separada de Supabase)
 - [x] **[CC]** Suite Vitest: 26 tests de cierres semanales y helpers de semana (`npm test`)
-- [ ] **[CC]** Seguir modularizando `App.jsx` (2,500+ lineas): extraer TabAnalisis, TabPagos, Ajustes
-- [ ] **[CC]** Tests para logica de MSI y pagos recurrentes (getPagosProximos, calcMSI)
+- [x] **[CC]** Tests para logica de MSI y pagos recurrentes: extraida a `src/lib/pagos.js`, 20 tests
+- [ ] **[CC]** Seguir modularizando `App.jsx` (2,300+ lineas): extraer TabAnalisis, TabPagos, Ajustes
 
 ---
 
