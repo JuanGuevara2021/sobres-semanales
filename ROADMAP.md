@@ -134,8 +134,8 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[JUAN]** Crear cuenta de Google Play Developer ($25 USD, pago unico) — en verificacion
 - [x] **[JUAN/CC]** Crear icono 512x512 y feature graphic 1024x500
 - [x] **[JUAN]** Tomar capturas de pantalla de la app (9 capturas en `store-assets/`)
-- [ ] **[JUAN]** Subir AAB y assets a Google Play Console
-- [ ] **[JUAN]** Llenar formularios: clasificacion, declaracion de datos (guia en `docs/GOOGLE_PLAY_LISTING.md`)
+- [x] **[JUAN]** Subir AAB y assets a Google Play Console — v1.1.1 en prueba interna + prueba cerrada Alpha (en revision 2026-07-02); testers 10/12 en `testers.csv`
+- [x] **[JUAN]** Llenar formularios: clasificacion, declaracion de datos (guia en `docs/GOOGLE_PLAY_LISTING.md`)
 - [ ] **[JUAN]** Pegar URLs: `https://sobres-semanales.vercel.app/terminos.html` y `/privacidad.html`
 - [ ] **[JUAN]** Enviar a revision (tarda 1-7 dias para apps nuevas)
 
@@ -160,7 +160,9 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[JUAN]** En RevenueCat: crear app Android, crear entitlement "pro", crear producto "sobres_pro_anual"
 - [x] **[CC]** Configurar API key real de RevenueCat en `src/lib/pro.js`
 - [x] **[CC]** Cambiar `isTesting: true` a produccion en `ads.js` (auditoria 2026-06-28)
-- [ ] **[JUAN]** En Google Play Console: crear suscripcion "sobres_pro_anual" ($120 MXN/año)
+- [x] **[JUAN]** En Google Play Console: crear suscripcion "sobres_pro_anual" ($120 MXN/año) — activa 2026-07-02, plan basico `anual`, cuenta de comerciante creada
+- [ ] **[JUAN/CC]** Verificar service credentials de Google en RevenueCat (Apps → Play Store → Service credentials)
+- [ ] **[JUAN]** Probar compra Pro con license testing (Configuracion → Prueba de licencias)
 
 #### Fase C5 — Feedback y bugs de usuarios (EN PROGRESO)
 
