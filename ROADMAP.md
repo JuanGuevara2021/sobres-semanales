@@ -161,8 +161,11 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[CC]** Configurar API key real de RevenueCat en `src/lib/pro.js`
 - [x] **[CC]** Cambiar `isTesting: true` a produccion en `ads.js` (auditoria 2026-06-28)
 - [x] **[JUAN]** En Google Play Console: crear suscripcion "sobres_pro_anual" ($120 MXN/año) — activa 2026-07-02, plan basico `anual`, cuenta de comerciante creada
-- [ ] **[JUAN/CC]** Verificar service credentials de Google en RevenueCat (Apps → Play Store → Service credentials)
+- [x] **[JUAN/CC]** Service credentials de Google en RevenueCat (2026-07-02): cuenta de servicio `revenuecat@sobres-semanales.iam.gserviceaccount.com`, JSON en `~/.android-keystore/`, permisos en Play Console, rol Pub/Sub Admin en GCP, notificaciones en tiempo real conectadas
+- [ ] **[JUAN]** Confirmar palomita de "subscriptions API" en RevenueCat (propagacion de Google, ~24h desde 2026-07-02 10am)
 - [ ] **[JUAN]** Probar compra Pro con license testing (Configuracion → Prueba de licencias)
+- [ ] **[JUAN]** Agregar cuenta bancaria en perfil de pagos (pay.google.com) antes del primer cobro real
+- [ ] **[JUAN]** Consultar contador: agregar regimen SAT para ingresos de plataformas (RESICO o similar) antes de produccion
 
 #### Fase C5 — Feedback y bugs de usuarios (EN PROGRESO)
 
