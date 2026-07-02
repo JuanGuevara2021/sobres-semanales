@@ -72,6 +72,17 @@ const wau = await db.query(`
   WHERE u.email NOT IN (${excluirSql})
   GROUP BY 1 ORDER BY 1 DESC LIMIT 8`);
 
+/* ---------- 4b. Embudo de activacion (tabla eventos, desde 2026-07-02) ---------- */
+const embudo = await db.query(`
+  SELECT e.evento, COUNT(DISTINCT e.usuario_id)::int AS usuarios, COUNT(*)::int AS veces
+  FROM eventos e JOIN auth.users u ON u.id = e.usuario_id
+  WHERE u.email NOT IN (${excluirSql})
+  GROUP BY e.evento
+  ORDER BY CASE e.evento
+    WHEN 'onboarding_inicio' THEN 1 WHEN 'onboarding_completado' THEN 2
+    WHEN 'tour_completado' THEN 3 WHEN 'app_abierta' THEN 4
+    WHEN 'form_gasto_abierto' THEN 5 WHEN 'gasto_guardado' THEN 6 ELSE 9 END`);
+
 /* ---------- 5. Habito profundo: cierres de semana por cuenta ---------- */
 const cierres = await db.query(`
   SELECT c.nombre AS cuenta, COUNT(ci.id)::int AS cierres, MAX(ci.semana) AS ultima_semana
@@ -103,6 +114,10 @@ console.log(`\n🔁 RETENCION (ventanas desde el registro; solo usuarios elegibl
 
 console.log("\n📈 ACTIVOS POR SEMANA\n");
 console.table(wau.rows.map((w) => ({ semana: w.semana.toISOString().slice(0, 10), "usuarios activos": w.usuarios_activos, gastos: w.gastos })));
+
+console.log("🚿 EMBUDO DE ACTIVACION (eventos desde 2026-07-02; usuarios unicos por paso)\n");
+if (embudo.rows.length === 0) console.log("   (sin eventos aun — se llenan conforme los usuarios usen la version nueva)\n");
+else console.table(embudo.rows.map((e) => ({ paso: e.evento, usuarios: e.usuarios, veces: e.veces })));
 
 console.log("✉️  CIERRES DE SEMANA POR CUENTA (habito completo)\n");
 console.table(cierres.rows.map((c) => ({ cuenta: c.cuenta, cierres: c.cierres, "ultima semana": c.ultima_semana ? new Date(c.ultima_semana).toISOString().slice(0, 10) : "—" })));

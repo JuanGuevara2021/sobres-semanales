@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
 import { MONEDAS, getMonedaConfig, DIAS_INICIO_OPTIONS, CATEGORIAS_DEFAULT, createMoneyFormatter } from "../lib/config";
+import { logEvento } from "../lib/eventos";
 
 const PLANTILLAS = [
   { id: "hogar_mexicano", nombre: "Hogar", emoji: "🏠", desc: "11 sobres para gastos del hogar" },
@@ -19,6 +20,8 @@ export default function OnboardingWizard() {
   const [sobresPreview, setSobresPreview] = useState([]);
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
+
+  useEffect(() => { logEvento("onboarding_inicio"); }, []);
 
   useEffect(() => {
     supabase.from("plantillas_sobres").select("*").eq("plantilla", plantilla).order("orden")
@@ -40,6 +43,7 @@ export default function OnboardingWizard() {
     setError("");
     try {
       await setupPerfil(nombre.trim(), moneda, plantilla, diaInicio);
+      logEvento("onboarding_completado", { plantilla, moneda, dia_inicio: diaInicio });
     } catch (err) {
       setError(err.message);
       setCargando(false);

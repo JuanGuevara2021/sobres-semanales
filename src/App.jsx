@@ -5,6 +5,7 @@ import { supabase } from "./lib/supabase";
 import { toStr, fromStr, addDays, MESES, DIAS, DIAS_INICIO_OPTIONS, COLORES_CATEGORIA } from "./lib/config";
 import { calcularCierres } from "./lib/cierres";
 import { getPagosProximos, calcEstimadoTarjeta, getTarjetaRecordatorios, calcMSI } from "./lib/pagos";
+import { logEvento } from "./lib/eventos";
 import Login from "./components/Login";
 import Landing from "./components/Landing";
 import OnboardingWizard from "./components/OnboardingWizard";
@@ -597,7 +598,7 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
         })}
       </div>
 
-      <button onClick={() => setShowForm(true)} className="md3-fab">
+      <button onClick={() => { logEvento("form_gasto_abierto"); setShowForm(true); }} className="md3-fab">
         <Plus size={24} />
       </button>
 
@@ -2063,6 +2064,8 @@ function AppMain() {
   const cuentaId = perfil?.cuenta_id;
   const { money, weekStartOf, weekOf, weekLabel, loaded: cuentaLoaded } = useCuenta();
 
+  useEffect(() => { logEvento("app_abierta"); }, []);
+
   const [sobres, setSobres] = useState([]);
   const [gastos, setGastos] = useState([]);
   const [cierres, setCierres] = useState([]);
@@ -2200,6 +2203,7 @@ function AppMain() {
     const { data, error } = await supabase.from("gastos").insert({ ...gasto, cuenta_id: cuentaId, usuario_id: perfil.user_id }).select().single();
     if (error) throw error;
     setGastos((prev) => (prev.some((g) => g.id === data.id) ? prev : [data, ...prev]));
+    logEvento("gasto_guardado", { con_sobre: !!gasto.sobre_id, medio: gasto.medio_pago });
     gastosCountRef.current += 1;
     if (!esPro && gastosCountRef.current % 5 === 0 && shouldShowAds(pilar)) {
       setTimeout(() => showInterstitial(pilar), 800);
@@ -2426,7 +2430,7 @@ function AppContent() {
     return <Login />;
   }
   if (!perfil) return <OnboardingWizard />;
-  if (!tourDone) return <WelcomeTour onDone={() => { markTourDone(); setTourDone(true); }} />;
+  if (!tourDone) return <WelcomeTour onDone={() => { logEvento("tour_completado"); markTourDone(); setTourDone(true); }} />;
   if (hasPin() && !pinOk) return <PinLock nombre={perfil.nombre} onUnlock={() => setPinOk(true)} />;
   return <CuentaProvider cuentaId={perfil.cuenta_id}><AppMain /></CuentaProvider>;
 }
