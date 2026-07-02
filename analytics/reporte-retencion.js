@@ -4,8 +4,16 @@
    "Activo" = creo al menos un gasto ese dia (gastos.creado_en, no la fecha del gasto). */
 import pg from "pg";
 
-// cuentas internas que no cuentan como usuarios reales
-const EXCLUIR = ["e2e-test-sobres@mailinator.com", "sobressemanalesapp+revisor@gmail.com"];
+// cuentas internas que no cuentan como usuarios reales:
+// e2e = tests automatizados; revisor = cuenta para Google Play;
+// alie = novia de Juan, su uso real es en la cuenta compartida original;
+// franco = cuenta de prueba manual
+const EXCLUIR = [
+  "e2e-test-sobres@mailinator.com",
+  "sobressemanalesapp+revisor@gmail.com",
+  "alie.suarez1301@gmail.com",
+  "franco.iglesiias2@gmail.com",
+];
 
 const db = new pg.Client({ connectionString: process.env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
 await db.connect();

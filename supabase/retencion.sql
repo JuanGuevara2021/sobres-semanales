@@ -16,7 +16,7 @@ SELECT u.email,
             ELSE 'inactivo' END AS estado
 FROM auth.users u
 LEFT JOIN gastos g ON g.usuario_id = u.id
-WHERE u.email NOT IN ('e2e-test-sobres@mailinator.com', 'sobressemanalesapp+revisor@gmail.com')
+WHERE u.email NOT IN ('e2e-test-sobres@mailinator.com', 'sobressemanalesapp+revisor@gmail.com', 'alie.suarez1301@gmail.com', 'franco.iglesiias2@gmail.com')
 GROUP BY u.email, u.created_at
 ORDER BY u.created_at;
 
@@ -24,7 +24,7 @@ ORDER BY u.created_at;
 WITH primer AS (
   SELECT u.id, u.created_at, MIN(g.creado_en) AS primer_gasto
   FROM auth.users u LEFT JOIN gastos g ON g.usuario_id = u.id
-  WHERE u.email NOT IN ('e2e-test-sobres@mailinator.com', 'sobressemanalesapp+revisor@gmail.com')
+  WHERE u.email NOT IN ('e2e-test-sobres@mailinator.com', 'sobressemanalesapp+revisor@gmail.com', 'alie.suarez1301@gmail.com', 'franco.iglesiias2@gmail.com')
   GROUP BY u.id, u.created_at)
 SELECT COUNT(*) AS usuarios,
        COUNT(primer_gasto) AS con_gasto,
@@ -35,7 +35,7 @@ FROM primer;
 WITH base AS (
   SELECT u.id, u.created_at::date AS reg
   FROM auth.users u
-  WHERE u.email NOT IN ('e2e-test-sobres@mailinator.com', 'sobressemanalesapp+revisor@gmail.com')),
+  WHERE u.email NOT IN ('e2e-test-sobres@mailinator.com', 'sobressemanalesapp+revisor@gmail.com', 'alie.suarez1301@gmail.com', 'franco.iglesiias2@gmail.com')),
 act AS (SELECT usuario_id, creado_en::date AS dia FROM gastos GROUP BY 1, 2)
 SELECT
   COUNT(*) FILTER (WHERE CURRENT_DATE >= reg + 7) AS elegibles_s1,
@@ -51,7 +51,7 @@ SELECT date_trunc('week', g.creado_en)::date AS semana,
        COUNT(DISTINCT g.usuario_id) AS usuarios_activos,
        COUNT(*) AS gastos
 FROM gastos g JOIN auth.users u ON u.id = g.usuario_id
-WHERE u.email NOT IN ('e2e-test-sobres@mailinator.com', 'sobressemanalesapp+revisor@gmail.com')
+WHERE u.email NOT IN ('e2e-test-sobres@mailinator.com', 'sobressemanalesapp+revisor@gmail.com', 'alie.suarez1301@gmail.com', 'franco.iglesiias2@gmail.com')
 GROUP BY 1 ORDER BY 1 DESC;
 
 -- 5) CIERRES POR CUENTA — quien completa el ciclo del habito
