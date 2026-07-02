@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "retencion": "node --env-file=.env analytics/reporte-retencion.js",
     "cap:sync": "vite build && npx cap sync android",
     "cap:open": "npx cap open android",
     "cap:run": "npx cap run android"
@@ -37,6 +38,7 @@
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.3.1",
     "@vitejs/plugin-react": "^6.0.2",
+    "pg": "^8.22.0",
     "sharp": "^0.35.2",
     "tailwindcss": "^4.3.1",
     "vite": "^8.0.16",
