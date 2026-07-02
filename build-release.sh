@@ -24,7 +24,8 @@ cd android
 cd ..
 
 # 4. Copiar AAB
-VERSION=$(grep -oP 'versionName "\K[^"]+' android/app/build.gradle)
+# sed en vez de grep -P: el -P falla en Git Bash de Windows segun el locale
+VERSION=$(sed -n 's/.*versionName "\([^"]*\)".*/\1/p' android/app/build.gradle)
 mkdir -p android/app/release
 cp android/app/build/outputs/bundle/release/app-release.aab "android/app/release/sobres-semanales-v${VERSION}.aab"
 
