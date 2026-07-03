@@ -45,9 +45,10 @@ export function AuthProvider({ children }) {
     setCargando(false)
   }
 
-  async function setupPerfil(nombre, moneda = 'MXN', plantilla = 'basico', diaInicio = 6) {
+  async function setupPerfil(nombre, moneda = 'MXN', plantilla = 'basico', diaInicio = 6, sobres = null, presupuesto = null) {
     const { data, error } = await supabase.rpc('setup_usuario', {
       p_nombre: nombre, p_moneda: moneda, p_plantilla: plantilla, p_dia_inicio: diaInicio,
+      p_sobres: sobres, p_presupuesto: presupuesto,
     })
     if (error) throw error
     setPerfil({ user_id: session.user.id, cuenta_id: data.cuenta_id, nombre: data.nombre })
