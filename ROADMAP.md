@@ -140,7 +140,7 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[JUAN]** Confirmar que el enlace opt-in funciona tras aplicarse los cambios de verificadores — funcionando 2026-07-03
 - [x] **[CC]** Generar AAB v1.1.2 (versionCode 4) con onboarding v2 y fixes de activacion — `android/app/release/sobres-semanales-v1.1.2.aab`
 - [x] **[JUAN]** Subir v1.1.2 a la prueba cerrada Alpha — subida 2026-07-03 ~11:20am, en comprobaciones de Play Console, pendiente enviar a revision
-- [ ] **[JUAN]** Confirmar que v1.1.2 quedo enviada (Descripcion general de la publicacion sin cambios pendientes) y esperar aprobacion
+- [x] **[JUAN]** v1.1.2 APROBADA y disponible en prueba cerrada (2026-07-03, mismo dia; revision de Google en ~1h, sesiones del revisor verificadas en la base desde IPs de Google)
 - [ ] **[JUAN]** Pegar URLs: `https://sobres-semanales.vercel.app/terminos.html` y `/privacidad.html`
 - [ ] **[JUAN]** Enviar a revision (tarda 1-7 dias para apps nuevas)
 
