@@ -4,18 +4,18 @@ Contexto (2026-07-03): Supabase mando aviso de bounces y su servicio integrado d
 es solo para desarrollo (~2-4 correos/hora). Con la confirmacion de correo activa, los
 testers dependen de estos correos para entrar. Plan en dos etapas:
 
-- **Etapa 1 (ahora, gratis)**: SMTP de Gmail con la cuenta `juan.baltazar1949@gmail.com` (el "correo de la app": ya es el de Play Console y AdMob).
+- **Etapa 1 (ahora, gratis)**: SMTP de Gmail con la cuenta personal `juan.baltazar1948@gmail.com` (la contrasenia de aplicacion se genero ahi; funcionando desde 2026-07-03).
   Alcanza para prueba cerrada y lanzamiento suave (~100-500 correos/dia).
 - **Etapa 2 (al lanzar en serio)**: comprar `sobressemanales.com` (~$11 USD/año en Vercel,
   disponible al 2026-07-03) + Resend gratis (3,000/mes) con el dominio verificado.
 
 ---
 
-## Etapa 1 — SMTP de Gmail (pasos de Juan, ~15 min)
+## Etapa 1 — SMTP de Gmail — COMPLETADA 2026-07-03 (configurada via Management API)
 
 ### A. Crear contraseña de aplicacion en Google
 
-1. Inicia sesion en Google con `juan.baltazar1949@gmail.com`
+1. Inicia sesion en Google con `juan.baltazar1948@gmail.com`
 2. Ve a https://myaccount.google.com → **Seguridad**
 3. Activa **Verificacion en 2 pasos** si no esta activa (obligatoria para el paso siguiente)
 4. Busca **Contraseñas de aplicaciones** (o entra directo: https://myaccount.google.com/apppasswords)
@@ -27,19 +27,19 @@ testers dependen de estos correos para entrar. Plan en dos etapas:
 1. https://supabase.com/dashboard → proyecto `sobres-semanales`
 2. **Project Settings** (engrane) → **Authentication** → seccion **SMTP Settings**
 3. Activa **Enable Custom SMTP** y llena:
-   - Sender email: `juan.baltazar1949@gmail.com`
+   - Sender email: `juan.baltazar1948@gmail.com`
    - Sender name: `Sobres Semanales`
    - Host: `smtp.gmail.com`
    - Port: `465`
-   - Username: `juan.baltazar1949@gmail.com`
+   - Username: `juan.baltazar1948@gmail.com`
    - Password: la contraseña de aplicacion de 16 letras
 4. **Save**
 5. En **Authentication → Rate Limits**, sube el limite de correos (ej. 30/hora)
 
 ### C. Probar
 
-1. Registrarse en la app con un alias real: `juan.baltazar1949+smtp1@gmail.com`
-2. Verificar que el correo de confirmacion llega y viene DE `juan.baltazar1949@gmail.com`
+1. Registrarse en la app con un alias real: `juan.baltazar1948+smtp1@gmail.com`
+2. Verificar que el correo de confirmacion llega y viene DE `juan.baltazar1948@gmail.com`
 3. Avisar a Claude Code para borrar la cuenta de prueba
 
 ---
@@ -92,6 +92,6 @@ Los correos default estan en ingles. Pegar estos textos:
 ## Reglas permanentes
 
 - NUNCA registrar cuentas de prueba con correos inventados — solo alias reales
-  (`juan.baltazar1949+loquesea@gmail.com`). Los rebotes danan la reputacion de envio.
+  (`juan.baltazar1948+loquesea@gmail.com`). Los rebotes danan la reputacion de envio.
 - Antes de campañas o mas testers, revisar el limite diario de Gmail (~100-500/dia);
   si se acerca, adelantar la Etapa 2.
