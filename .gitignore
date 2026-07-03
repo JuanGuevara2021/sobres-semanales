@@ -33,3 +33,9 @@ android/app/release/
 *.keystore
 *.jks
 android/keystore.properties
+
+# Firebase config (repo publico — se queda local)
+android/app/google-services.json
+
+# Capturas temporales de trabajo
+ss juan/
