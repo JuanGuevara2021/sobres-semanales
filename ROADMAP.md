@@ -137,7 +137,9 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[JUAN]** Subir AAB y assets a Google Play Console — v1.1.1 en prueba interna + prueba cerrada Alpha (aprobada, "Disponible para verificadores" desde 2026-07-02 9:04am); testers 11 en lista `principal`
 - [x] **[JUAN]** Llenar formularios: clasificacion, declaracion de datos (guia en `docs/GOOGLE_PLAY_LISTING.md`)
 - [x] **[JUAN/CC]** Diagnosticar enlace de prueba cerrada roto (2026-07-03): la asignacion de la lista de verificadores quedo como cambio sin enviar en "Descripcion general de la publicacion" — se enviaron los 2 cambios pendientes a revision
-- [ ] **[JUAN]** Confirmar que el enlace opt-in funciona tras aplicarse los cambios de verificadores: `https://play.google.com/apps/testing/com.sobressemanales.app` (probar con cuenta de la lista; puede tardar minutos a horas)
+- [x] **[JUAN]** Confirmar que el enlace opt-in funciona tras aplicarse los cambios de verificadores — funcionando 2026-07-03
+- [x] **[CC]** Generar AAB v1.1.2 (versionCode 4) con onboarding v2 y fixes de activacion — `android/app/release/sobres-semanales-v1.1.2.aab`
+- [ ] **[JUAN]** Subir v1.1.2 a la prueba cerrada Alpha (Play Console → Prueba cerrada → Crear una version nueva) — idealmente antes de que entren mas testers, para que hagan el onboarding nuevo
 - [ ] **[JUAN]** Pegar URLs: `https://sobres-semanales.vercel.app/terminos.html` y `/privacidad.html`
 - [ ] **[JUAN]** Enviar a revision (tarda 1-7 dias para apps nuevas)
 
