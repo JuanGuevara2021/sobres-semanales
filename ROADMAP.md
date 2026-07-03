@@ -179,10 +179,11 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[CC]** Prompt de resena en Google Play (`src/lib/review.js`, despues de 14 dias, 1 vez)
 - [x] **[JUAN]** Crear proyecto Firebase y descargar `google-services.json` a `android/app/`
 
-**Embudo de activacion (corte 2026-07-03):** 7 registros totales (5 internos/test + 2 organicos).
-- Franco (Argentina, 2026-07-02): onboarding completo (11 sobres, ARS), abrio el formulario de gasto pero NO guardo ninguno; no ha regresado.
-- Judith (july.gask, 2026-07-03): onboarding + tour completos (11 sobres, MXN), aun no abre el formulario de gasto.
-- Patron: los 2 usuarios organicos se detienen justo antes del primer gasto → revisar friccion del formulario o agregar empujon post-onboarding ("registra tu primer gasto").
+**Embudo de activacion (corte 2026-07-03):** 7 registros totales (5 internos/test + 2 externos).
+- Franco (Argentina, organico, 2026-07-02): onboarding completo (11 sobres, ARS) al registrarse 12:05pm AR; REGRESO solo a las 3:29pm, completo tour, abrio el formulario de gasto a los 6 segundos y lo abandono sin guardar. Sin actividad desde entonces.
+- Judith (july.gask, amiga de Dani invitada al experimento, 2026-07-03): onboarding + tour completos (11 sobres, MXN), aun no abre el formulario de gasto.
+- Patron: ambos se detienen justo antes del primer gasto; Franco mostro intencion clara (volvio a intentarlo) → revisar friccion del formulario o agregar empujon post-onboarding ("registra tu primer gasto").
+- Nota: el tracking de eventos se desplego el 2026-07-02 17:18 UTC; sesiones anteriores no tienen eventos.
 
 #### Fase C6 — Landing page y presencia
 
