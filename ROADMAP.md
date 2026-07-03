@@ -134,8 +134,10 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[JUAN]** Crear cuenta de Google Play Developer ($25 USD, pago unico) — en verificacion
 - [x] **[JUAN/CC]** Crear icono 512x512 y feature graphic 1024x500
 - [x] **[JUAN]** Tomar capturas de pantalla de la app (9 capturas en `store-assets/`)
-- [x] **[JUAN]** Subir AAB y assets a Google Play Console — v1.1.1 en prueba interna + prueba cerrada Alpha (en revision 2026-07-02); testers 10/12 en `testers.csv`
+- [x] **[JUAN]** Subir AAB y assets a Google Play Console — v1.1.1 en prueba interna + prueba cerrada Alpha (aprobada, "Disponible para verificadores" desde 2026-07-02 9:04am); testers 11 en lista `principal`
 - [x] **[JUAN]** Llenar formularios: clasificacion, declaracion de datos (guia en `docs/GOOGLE_PLAY_LISTING.md`)
+- [x] **[JUAN/CC]** Diagnosticar enlace de prueba cerrada roto (2026-07-03): la asignacion de la lista de verificadores quedo como cambio sin enviar en "Descripcion general de la publicacion" — se enviaron los 2 cambios pendientes a revision
+- [ ] **[JUAN]** Confirmar que el enlace opt-in funciona tras aplicarse los cambios de verificadores: `https://play.google.com/apps/testing/com.sobressemanales.app` (probar con cuenta de la lista; puede tardar minutos a horas)
 - [ ] **[JUAN]** Pegar URLs: `https://sobres-semanales.vercel.app/terminos.html` y `/privacidad.html`
 - [ ] **[JUAN]** Enviar a revision (tarda 1-7 dias para apps nuevas)
 
@@ -176,6 +178,11 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[CC]** Integrar Firebase Crashlytics (`src/lib/crashlytics.js`, gradle configurado)
 - [x] **[CC]** Prompt de resena en Google Play (`src/lib/review.js`, despues de 14 dias, 1 vez)
 - [x] **[JUAN]** Crear proyecto Firebase y descargar `google-services.json` a `android/app/`
+
+**Embudo de activacion (corte 2026-07-03):** 7 registros totales (5 internos/test + 2 organicos).
+- Franco (Argentina, 2026-07-02): onboarding completo (11 sobres, ARS), abrio el formulario de gasto pero NO guardo ninguno; no ha regresado.
+- Judith (july.gask, 2026-07-03): onboarding + tour completos (11 sobres, MXN), aun no abre el formulario de gasto.
+- Patron: los 2 usuarios organicos se detienen justo antes del primer gasto → revisar friccion del formulario o agregar empujon post-onboarding ("registra tu primer gasto").
 
 #### Fase C6 — Landing page y presencia
 
