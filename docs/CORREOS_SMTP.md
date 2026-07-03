@@ -4,7 +4,7 @@ Contexto (2026-07-03): Supabase mando aviso de bounces y su servicio integrado d
 es solo para desarrollo (~2-4 correos/hora). Con la confirmacion de correo activa, los
 testers dependen de estos correos para entrar. Plan en dos etapas:
 
-- **Etapa 1 (ahora, gratis)**: SMTP de Gmail con la cuenta `sobressemanalesapp@gmail.com`.
+- **Etapa 1 (ahora, gratis)**: SMTP de Gmail con la cuenta `juan.baltazar1949@gmail.com` (el "correo de la app": ya es el de Play Console y AdMob).
   Alcanza para prueba cerrada y lanzamiento suave (~100-500 correos/dia).
 - **Etapa 2 (al lanzar en serio)**: comprar `sobressemanales.com` (~$11 USD/año en Vercel,
   disponible al 2026-07-03) + Resend gratis (3,000/mes) con el dominio verificado.
@@ -15,7 +15,7 @@ testers dependen de estos correos para entrar. Plan en dos etapas:
 
 ### A. Crear contraseña de aplicacion en Google
 
-1. Inicia sesion en `sobressemanalesapp@gmail.com`
+1. Inicia sesion en Google con `juan.baltazar1949@gmail.com`
 2. Ve a https://myaccount.google.com → **Seguridad**
 3. Activa **Verificacion en 2 pasos** si no esta activa (obligatoria para el paso siguiente)
 4. Busca **Contraseñas de aplicaciones** (o entra directo: https://myaccount.google.com/apppasswords)
@@ -27,11 +27,11 @@ testers dependen de estos correos para entrar. Plan en dos etapas:
 1. https://supabase.com/dashboard → proyecto `sobres-semanales`
 2. **Project Settings** (engrane) → **Authentication** → seccion **SMTP Settings**
 3. Activa **Enable Custom SMTP** y llena:
-   - Sender email: `sobressemanalesapp@gmail.com`
+   - Sender email: `juan.baltazar1949@gmail.com`
    - Sender name: `Sobres Semanales`
    - Host: `smtp.gmail.com`
    - Port: `465`
-   - Username: `sobressemanalesapp@gmail.com`
+   - Username: `juan.baltazar1949@gmail.com`
    - Password: la contraseña de aplicacion de 16 letras
 4. **Save**
 5. En **Authentication → Rate Limits**, sube el limite de correos (ej. 30/hora)
@@ -39,7 +39,7 @@ testers dependen de estos correos para entrar. Plan en dos etapas:
 ### C. Probar
 
 1. Registrarse en la app con un alias real: `juan.baltazar1949+smtp1@gmail.com`
-2. Verificar que el correo de confirmacion llega y viene DE `sobressemanalesapp@gmail.com`
+2. Verificar que el correo de confirmacion llega y viene DE `juan.baltazar1949@gmail.com`
 3. Avisar a Claude Code para borrar la cuenta de prueba
 
 ---
