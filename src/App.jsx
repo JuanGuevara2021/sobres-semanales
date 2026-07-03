@@ -296,6 +296,9 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClo
 
   const tarjetasActivas = (tarjetas || []).filter((t) => t.activo);
 
+  // distingue "abrio y abandono" de "abrio y guardo" en el embudo de activacion
+  const cerrarSinGuardar = () => { if (!isEdit) logEvento("form_gasto_cerrado_sin_guardar"); onClose(); };
+
   const seleccionarSobre = (id) => { setSobreId(id); setFueraDeSobres(false); const s = sobres.find((x) => x.id === id); if (s && !isEdit) setCategoria(catDef(s)); };
   const marcarFuera = () => { setFueraDeSobres(true); setSobreId(""); if (!isEdit) setCategoria(categorias[0]?.nombre || "casa"); };
 
@@ -314,15 +317,16 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClo
   };
 
   return (
-    <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop`} onClick={onClose}>
+    <div className={`fixed inset-0 z-30 flex items-end justify-center md3-sheet-backdrop`} onClick={cerrarSinGuardar}>
       <div className={`w-full max-w-md p-4 pb-6 overflow-y-auto md3-sheet`} style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
         <div className="md3-drag-handle" />
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>{isEdit ? "Modificar gasto" : "Registrar gasto"}</h2>
-          <button className="text-sm px-2 py-1" style={{ color: "var(--ink-soft)" }} onClick={onClose}>Cerrar</button>
+          <button className="text-sm px-2 py-1" style={{ color: "var(--ink-soft)" }} onClick={cerrarSinGuardar}>Cerrar</button>
         </div>
         <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Cuanto?</label>
-        <input type="number" inputMode="decimal" placeholder="0.00" value={monto} autoFocus onChange={(e) => setMonto(e.target.value)}
+        {/* sin autoFocus: el teclado tapaba el boton Guardar en el primer uso (caso Franco) */}
+        <input type="number" inputMode="decimal" placeholder="0.00" value={monto} onChange={(e) => setMonto(e.target.value)}
           className="w-full num text-2xl font-semibold rounded-xl px-3 py-2 mb-3 outline-none"
           style={{ border: "1px solid var(--line)", color: "var(--ink)", background: "var(--paper)" }} />
 
@@ -598,7 +602,7 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
         })}
       </div>
 
-      <button onClick={() => { logEvento("form_gasto_abierto"); setShowForm(true); }} className="md3-fab">
+      <button onClick={() => { logEvento("form_gasto_abierto", { origen: "fab" }); setShowForm(true); }} className="md3-fab">
         <Plus size={24} />
       </button>
 
@@ -615,11 +619,21 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
         </div>
       </div>
 
-      {gastosFiltrados.length === 0 && (
-        <div className="text-sm py-6 text-center" style={{ color: "var(--ink-soft)" }}>
-          Sin gastos{filtro !== "todos" ? " en este filtro" : " registrados"}.{isCurrent && filtro === "todos" ? " Registra el primero arriba." : ""}
+      {gastosFiltrados.length === 0 && (filtro === "todos" && isCurrent ? (
+        <div className="md3-card px-4 py-6 text-center" style={{ borderRadius: "16px" }}>
+          <div className="text-3xl mb-2">✏️</div>
+          <div className="text-sm font-semibold mb-1" style={{ color: "var(--ink)" }}>Registra tu primer gasto de la semana</div>
+          <div className="text-xs mb-3" style={{ color: "var(--ink-soft)" }}>Un cafe, el camion, lo que sea — toma 10 segundos.</div>
+          <button onClick={() => { logEvento("form_gasto_abierto", { origen: "cta_vacio" }); setShowForm(true); }}
+            className="md3-btn-filled px-5 py-2.5 text-sm font-bold" style={{ background: "var(--green)", color: "#fff" }}>
+            + Registrar gasto
+          </button>
         </div>
-      )}
+      ) : (
+        <div className="text-sm py-6 text-center" style={{ color: "var(--ink-soft)" }}>
+          Sin gastos{filtro !== "todos" ? " en este filtro" : " registrados"}.
+        </div>
+      ))}
       {Object.keys(porDia).map((dia) => (
         <div key={dia} className="mb-3">
           <div className="text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>{fmtDia(dia)}</div>

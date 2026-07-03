@@ -185,6 +185,14 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - Patron: ambos se detienen justo antes del primer gasto; Franco mostro intencion clara (volvio a intentarlo) → revisar friccion del formulario o agregar empujon post-onboarding ("registra tu primer gasto").
 - Nota: el tracking de eventos se desplego el 2026-07-02 17:18 UTC; sesiones anteriores no tienen eventos.
 
+**Mejoras de activacion aprobadas (2026-07-03) — implementadas el mismo dia:**
+- [x] **[CC]** Montos de plantillas escalados por moneda (`src/lib/plantillas.js` + 13 tests; ARS ×75, COP ×220, CLP ×50, PEN ×0.2, USD ×0.05, con redondeo natural)
+- [x] **[CC]** Onboarding: paso "Tus sobres" editable — gasto semanal total que se reparte proporcionalmente, editar montos, quitar y agregar sobres (el sobre Ahorro no se puede quitar). RPC `setup_usuario` v2 acepta sobres custom (`supabase/migracion_onboarding_v2.sql`, aplicada; compatible con llamadas de la app vieja)
+- [x] **[CC]** Renombrar "Tianguis" → "Mercado" en plantilla hogar
+- [x] **[CC]** Evento `form_gasto_cerrado_sin_guardar` + prop `origen` (fab/cta_vacio) en `form_gasto_abierto`
+- [x] **[CC]** Empujon ligero: estado vacio en Semana con CTA "Registra tu primer gasto" (sin popups)
+- [x] **[CC]** Quitar autofocus del monto en GastoForm (el teclado tapaba el boton Guardar en el primer uso)
+
 #### Fase C6 — Landing page y presencia
 
 - [x] **[CC]** Landing page integrada (`src/components/Landing.jsx`)
