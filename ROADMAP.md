@@ -139,7 +139,8 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[JUAN/CC]** Diagnosticar enlace de prueba cerrada roto (2026-07-03): la asignacion de la lista de verificadores quedo como cambio sin enviar en "Descripcion general de la publicacion" — se enviaron los 2 cambios pendientes a revision
 - [x] **[JUAN]** Confirmar que el enlace opt-in funciona tras aplicarse los cambios de verificadores — funcionando 2026-07-03
 - [x] **[CC]** Generar AAB v1.1.2 (versionCode 4) con onboarding v2 y fixes de activacion — `android/app/release/sobres-semanales-v1.1.2.aab`
-- [ ] **[JUAN]** Subir v1.1.2 a la prueba cerrada Alpha (Play Console → Prueba cerrada → Crear una version nueva) — idealmente antes de que entren mas testers, para que hagan el onboarding nuevo
+- [x] **[JUAN]** Subir v1.1.2 a la prueba cerrada Alpha — subida 2026-07-03 ~11:20am, en comprobaciones de Play Console, pendiente enviar a revision
+- [ ] **[JUAN]** Confirmar que v1.1.2 quedo enviada (Descripcion general de la publicacion sin cambios pendientes) y esperar aprobacion
 - [ ] **[JUAN]** Pegar URLs: `https://sobres-semanales.vercel.app/terminos.html` y `/privacidad.html`
 - [ ] **[JUAN]** Enviar a revision (tarda 1-7 dias para apps nuevas)
 
