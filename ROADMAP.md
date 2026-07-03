@@ -178,7 +178,9 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[CC]** Boton "Sugerir mejora" en Ajustes (abre correo prellenado)
 - [ ] **[JUAN]** Crear correo soporte@sobressemanales.com (puede ser alias de Gmail)
 - [ ] **[JUAN]** Crear correo privacidad@sobressemanales.com (puede ser alias de Gmail)
-- [ ] **[JUAN/CC]** Configurar SMTP propio en Supabase (ej. Resend, gratis 3k/mes) ANTES de abrir a mas testers — el correo integrado de Supabase es solo para dev (limite bajo por hora) y el 2026-07-03 llego aviso por bounces (correos de prueba inventados; usar siempre alias +prueba de Gmail)
+- [ ] **[JUAN]** Configurar SMTP de Gmail en Supabase (gratis, cuenta sobressemanalesapp@gmail.com) — guia paso a paso en `docs/CORREOS_SMTP.md`; urgente con confirmacion de correo activa (el servicio integrado limita ~2-4 correos/hora y ya hubo aviso por bounces 2026-07-03)
+- [ ] **[JUAN]** Traducir plantillas de correo de Supabase al español (textos listos en `docs/CORREOS_SMTP.md`)
+- [ ] Al lanzar: migrar SMTP a dominio propio + Resend (Etapa 2 de `docs/CORREOS_SMTP.md`; sobressemanales.com disponible por $11.25 USD/año en Vercel al 2026-07-03)
 - [x] **[CC]** Integrar Firebase Crashlytics (`src/lib/crashlytics.js`, gradle configurado)
 - [x] **[CC]** Prompt de resena en Google Play (`src/lib/review.js`, despues de 14 dias, 1 vez)
 - [x] **[JUAN]** Crear proyecto Firebase y descargar `google-services.json` a `android/app/`
