@@ -112,7 +112,7 @@ export default function OnboardingWizard() {
               <p className="text-xs mt-1" style={{ color: "#5A6B85" }}>Como te llamas?</p>
             </div>
             <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Tu nombre"
-              autoFocus className="w-full rounded-xl px-3 py-2.5 text-sm mb-4 outline-none"
+              className="w-full rounded-xl px-3 py-2.5 text-sm mb-4 outline-none"
               style={{ border: "1px solid #E0DDD5", color: "#22324A", background: "#F6F4ED" }} />
 
             <p className="text-xs font-bold mb-2" style={{ color: "#5A6B85", textTransform: "uppercase", letterSpacing: "0.05em" }}>Moneda</p>

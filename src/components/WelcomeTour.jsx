@@ -14,7 +14,7 @@ const slides = [
   {
     emoji: "✉️",
     title: "Sobres: tu presupuesto semanal",
-    desc: "Reparte tu dinero en sobres cada semana: tianguis, casa, antojos... Cada sobre tiene su limite y no puedes gastar de mas.",
+    desc: "Reparte tu dinero en sobres cada semana: mercado, casa, antojos... Cada sobre tiene su limite y no puedes gastar de mas.",
   },
   {
     emoji: "📝",

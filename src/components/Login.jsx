@@ -89,7 +89,7 @@ export default function Login() {
             {modo !== "recuperar" && <div className="mb-3" />}
 
             <label className="block text-[11px] font-semibold mb-1 uppercase tracking-wide" style={{ color: "#5A6B85" }}>Correo</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@correo.com" required autoFocus
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@correo.com" required
               className="w-full rounded-xl px-3.5 py-2.5 text-sm mb-3 outline-none transition-shadow focus:ring-2 focus:ring-emerald-400/40"
               style={{ border: "1px solid #E3DECF", color: "#22324A", background: "#F6F4ED" }} />
 

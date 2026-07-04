@@ -285,6 +285,8 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClo
   const [medio, setMedio] = useState(prefill?.medio_pago || "efectivo");
   const [tarjetaId, setTarjetaId] = useState(prefill?.tarjeta_id || "");
   const [categoria, setCategoria] = useState(prefill?.categoria || (gastables[0] ? catDef(gastables[0]) : categorias[0]?.nombre || "casa"));
+  // si el usuario ya eligio categoria a mano, cambiar de sobre no se la pisa
+  const [catManual, setCatManual] = useState(false);
   const [nota, setNota] = useState(prefill?.nota || "");
   const [fecha, setFecha] = useState(prefill?.fecha || (isCurrent ? hoy : viewedWS));
   const [error, setError] = useState("");
@@ -299,8 +301,8 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClo
   // distingue "abrio y abandono" de "abrio y guardo" en el embudo de activacion
   const cerrarSinGuardar = () => { if (!isEdit) logEvento("form_gasto_cerrado_sin_guardar"); onClose(); };
 
-  const seleccionarSobre = (id) => { setSobreId(id); setFueraDeSobres(false); const s = sobres.find((x) => x.id === id); if (s && !isEdit) setCategoria(catDef(s)); };
-  const marcarFuera = () => { setFueraDeSobres(true); setSobreId(""); if (!isEdit) setCategoria(categorias[0]?.nombre || "casa"); };
+  const seleccionarSobre = (id) => { setSobreId(id); setFueraDeSobres(false); const s = sobres.find((x) => x.id === id); if (s && !isEdit && !catManual) setCategoria(catDef(s)); };
+  const marcarFuera = () => { setFueraDeSobres(true); setSobreId(""); if (!isEdit && !catManual) setCategoria(categorias[0]?.nombre || "casa"); };
 
   const submit = async () => {
     const m = parseFloat(monto);
@@ -352,7 +354,7 @@ function GastoForm({ sobres, tarjetas, viewedWS, isCurrent, onAdd, onEdit, onClo
         <label className="block text-xs font-semibold mb-1" style={{ color: "var(--ink-soft)" }}>Categoria</label>
         <div className="flex flex-wrap gap-1.5 mb-3">
           {categorias.map((c) => (
-            <button key={c.nombre} onClick={() => setCategoria(c.nombre)} className="chip"
+            <button key={c.nombre} onClick={() => { setCategoria(c.nombre); setCatManual(true); }} className="chip"
               style={categoria === c.nombre ? { background: c.color, color: "#fff", borderColor: c.color } : {}}>
               {c.label}
             </button>
@@ -2093,6 +2095,13 @@ function AppMain() {
   const [tab, setTab] = useState("semana");
   const [offset, setOffset] = useState(0);
   const [err, setErr] = useState("");
+  const [toast, setToast] = useState("");
+  const toastTimer = useRef(null);
+  const mostrarToast = (msg) => {
+    setToast(msg);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(""), 2200);
+  };
   const [showPagoForm, setShowPagoForm] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [fondoCustom, setFondoCustom] = useState(() => localStorage.getItem("sobres_fondo") || "");
@@ -2217,6 +2226,7 @@ function AppMain() {
     const { data, error } = await supabase.from("gastos").insert({ ...gasto, cuenta_id: cuentaId, usuario_id: perfil.user_id }).select().single();
     if (error) throw error;
     setGastos((prev) => (prev.some((g) => g.id === data.id) ? prev : [data, ...prev]));
+    mostrarToast("✓ Gasto guardado");
     logEvento("gasto_guardado", { con_sobre: !!gasto.sobre_id, medio: gasto.medio_pago });
     gastosCountRef.current += 1;
     if (!esPro && gastosCountRef.current % 5 === 0 && shouldShowAds(pilar)) {
@@ -2399,6 +2409,13 @@ function AppMain() {
         {tab === "pagos" && <TabPagos pagos={pagos} sobres={sobres} msi={msi} tarjetas={tarjetas} gastos={gastos} onSavePago={savePago} onDeletePago={deletePago} onPagar={pagarRecurrente} onSaveMSI={saveMSI} onDeleteMSI={deleteMSI} onSaveTarjeta={saveTarjeta} onDeleteTarjeta={deleteTarjeta} onPagarTarjeta={pagarTarjeta} />}
         {tab === "analisis" && <TabAnalisis gastos={gastos} sobres={sobres} tarjetas={tarjetas} presupSemanal={presupSemanal} onNavToWeek={navToWeek} inicioSobres={inicioSobres} />}
       </div>
+
+      {toast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 px-4 py-2.5 rounded-full text-sm font-semibold shadow-lg"
+          style={{ background: "var(--green)", color: "#fff" }} role="status">
+          {toast}
+        </div>
+      )}
 
       {showPagoForm && <GastoForm sobres={sobres} tarjetas={tarjetas} viewedWS={viewedWS} isCurrent={true} onAdd={confirmarPago} onClose={() => setShowPagoForm(null)} prefill={showPagoForm} />}
       {showSettings && <SettingsPanel tema={tema} onChangeTema={cambiarTema} fondoCustom={fondoCustom} onChangeFondo={cambiarFondo} onClose={() => setShowSettings(false)} esPro={esPro} onShowPro={() => { setShowSettings(false); setShowProModal(true); }} gastos={gastos} sobres={sobres} pagos={pagos} tarjetas={tarjetas} />}
