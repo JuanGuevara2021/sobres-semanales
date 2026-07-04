@@ -174,6 +174,14 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 
 #### Fase C5 — Feedback y bugs de usuarios (EN PROGRESO)
 
+**Feedback de tester (amigo de Juan, 2026-07-04) — implementado el mismo dia:**
+- [x] **[CC]** Ojito para ver la contraseña (login, registro y nueva contraseña)
+- [x] **[CC]** Campo "confirma tu contraseña" en el registro
+- [x] **[CC]** Errores de auth traducidos al español (`src/lib/authErrors.js` + 9 tests; nunca mostrar ingles crudo)
+- [x] **[CC]** Flujo completo de recuperar contraseña ("¿Olvidaste tu contraseña?" → correo → pantalla de nueva contraseña)
+- [x] **[CC]** "No tengo cuenta — Registrarme" ahora es boton con contraste (antes texto gris casi invisible)
+- [ ] Pendiente de investigar: el evento onboarding_completado de Dany no se registro aunque completo el onboarding (3x onboarding_inicio sin completado)
+
 - [x] **[CC]** Boton "Reportar problema" en Ajustes (abre correo con info del dispositivo)
 - [x] **[CC]** Boton "Sugerir mejora" en Ajustes (abre correo prellenado)
 - [ ] **[JUAN]** Crear correo soporte@sobressemanales.com (puede ser alias de Gmail)
