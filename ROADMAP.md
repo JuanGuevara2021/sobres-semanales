@@ -142,7 +142,9 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[JUAN]** Subir v1.1.2 a la prueba cerrada Alpha — subida 2026-07-03 ~11:20am, en comprobaciones de Play Console, pendiente enviar a revision
 - [x] **[JUAN]** v1.1.2 APROBADA y disponible en prueba cerrada (2026-07-03, mismo dia; revision de Google en ~1h, sesiones del revisor verificadas en la base desde IPs de Google)
 - [x] **[CC]** AAB v1.1.3 (versionCode 5) generado 2026-07-04 con los fixes de login del feedback de tester
-- [ ] **[JUAN]** Subir v1.1.3 a prueba cerrada Alpha y enviar a revision (el registro es el paso mas critico del embudo — un tester que no puede entrar no regresa)
+- [x] **[JUAN]** v1.1.3 subida a prueba cerrada Alpha 2026-07-04 (fixes de login + auditoria UX `docs/AUDIT_UX_2026-07-04.md`), en revision
+- [ ] **[JUAN]** Meta para produccion: 12 testers inscritos 14 dias CONTINUOS con uso real (Google evalua engagement, no solo instalacion). Al 2026-07-04: ~3 activos de 12 — empujar a los demas por WhatsApp
+- [ ] **[CC]** v1.1.4: atacar pendientes M1-M5 de la auditoria UX + evento onboarding_completado perdido
 - [ ] **[JUAN]** Pegar URLs: `https://sobres-semanales.vercel.app/terminos.html` y `/privacidad.html`
 - [ ] **[JUAN]** Enviar a revision (tarda 1-7 dias para apps nuevas)
 
