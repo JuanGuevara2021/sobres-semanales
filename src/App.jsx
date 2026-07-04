@@ -6,7 +6,7 @@ import { toStr, fromStr, addDays, MESES, DIAS, DIAS_INICIO_OPTIONS, COLORES_CATE
 import { calcularCierres } from "./lib/cierres";
 import { getPagosProximos, calcEstimadoTarjeta, getTarjetaRecordatorios, calcMSI } from "./lib/pagos";
 import { logEvento } from "./lib/eventos";
-import Login from "./components/Login";
+import Login, { NuevaPassword } from "./components/Login";
 import Landing from "./components/Landing";
 import OnboardingWizard from "./components/OnboardingWizard";
 import PinLock, { hasPin, isUnlocked, setPin, getPin, clearUnlock } from "./components/PinLock";
@@ -2433,7 +2433,7 @@ export default function App() {
 }
 
 function AppContent() {
-  const { session, perfil, cargando } = useAuth();
+  const { session, perfil, cargando, recuperandoPass } = useAuth();
   const [pinOk, setPinOk] = useState(!hasPin() || isUnlocked());
   const [showLogin, setShowLogin] = useState(false);
   const [tourDone, setTourDone] = useState(!needsTour());
@@ -2443,6 +2443,7 @@ function AppContent() {
     if (esPublica && !showLogin) return <Landing onLogin={() => setShowLogin(true)} />;
     return <Login />;
   }
+  if (recuperandoPass) return <NuevaPassword />;
   if (!perfil) return <OnboardingWizard />;
   if (!tourDone) return <WelcomeTour onDone={() => { logEvento("tour_completado"); markTourDone(); setTourDone(true); }} />;
   if (hasPin() && !pinOk) return <PinLock nombre={perfil.nombre} onUnlock={() => setPinOk(true)} />;

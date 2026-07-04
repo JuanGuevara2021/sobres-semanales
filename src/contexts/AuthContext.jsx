@@ -7,6 +7,9 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [perfil, setPerfilState] = useState(null)
   const [cargando, setCargando] = useState(true)
+  // true cuando el usuario llego desde el enlace de "recuperar contraseña":
+  // la app debe mostrar la pantalla de nueva contraseña antes que nada
+  const [recuperandoPass, setRecuperandoPass] = useState(false)
   // ref espejo de perfil: permite saber dentro del callback de auth
   // si el perfil aun no se resuelve, sin problemas de closure
   const perfilRef = useRef(null)
@@ -20,6 +23,7 @@ export function AuthProvider({ children }) {
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (_event === 'PASSWORD_RECOVERY') setRecuperandoPass(true)
       setSession(session)
       if (session) {
         // mientras el perfil no se resuelva, mostrar "Cargando..." en vez
@@ -70,10 +74,25 @@ export function AuthProvider({ children }) {
     setPerfil(null)
   }
 
+  // El enlace del correo abre la PWA en produccion (en el APK nativo el origin
+  // seria https://localhost y el enlace moriria); ahi Supabase emite PASSWORD_RECOVERY
+  async function recuperar(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://sobres-semanales.vercel.app',
+    })
+    if (error) throw error
+  }
+
+  async function cambiarPassword(password) {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) throw error
+    setRecuperandoPass(false)
+  }
+
   return (
     <AuthContext.Provider value={{
-      session, perfil, cargando,
-      login, registro, logout, setupPerfil
+      session, perfil, cargando, recuperandoPass,
+      login, registro, logout, setupPerfil, recuperar, cambiarPassword
     }}>
       {children}
     </AuthContext.Provider>

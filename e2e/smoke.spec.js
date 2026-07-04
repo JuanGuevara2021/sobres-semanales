@@ -39,7 +39,8 @@ test("la pantalla de login carga", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Sobres Semanales" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Entrar" })).toBeVisible();
-  await expect(page.getByText("No tengo cuenta — registrarme")).toBeVisible();
+  await expect(page.getByText("No tengo cuenta — Registrarme")).toBeVisible();
+  await expect(page.getByText("¿Olvidaste tu contraseña?")).toBeVisible();
 });
 
 test("rechaza credenciales invalidas", async ({ page }) => {
