@@ -145,6 +145,7 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 - [x] **[JUAN]** v1.1.3 subida a prueba cerrada Alpha 2026-07-04 (fixes de login + auditoria UX `docs/AUDIT_UX_2026-07-04.md`), en revision
 - [ ] **[JUAN]** Meta para produccion: 12 testers inscritos 14 dias CONTINUOS con uso real (Google evalua engagement, no solo instalacion). Al 2026-07-04: ~3 activos de 12 — empujar a los demas por WhatsApp
 - [ ] **[CC]** v1.1.4: atacar pendientes M1-M5 de la auditoria UX + evento onboarding_completado perdido
+- [ ] **[CC]** v1.1.4: chip "+ Nueva" al final de las categorias en GastoForm (crear categoria en el momento de necesidad — señal: Dany uso "escuela" para comida del trabajo sin descubrir Ajustes)
 - [ ] **[JUAN]** Pegar URLs: `https://sobres-semanales.vercel.app/terminos.html` y `/privacidad.html`
 - [ ] **[JUAN]** Enviar a revision (tarda 1-7 dias para apps nuevas)
 
