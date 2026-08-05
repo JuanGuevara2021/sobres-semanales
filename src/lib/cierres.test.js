@@ -62,24 +62,35 @@ describe("sobre tipo ahorro", () => {
     expect(r.saldosActualizados).toHaveLength(0); // saldo era 0 y queda 0
   });
 
-  it("sobregiro deja saldo negativo que se arrastra, sobrante 0", () => {
+  it("sobregiro es rescatado por el Ahorro y el sobre reinicia a 0", () => {
     const r = run({ sobres: [sobre()], gastos: [gasto("2026-06-22", 600)] });
     const d = r.nuevos[0].detalle[0];
     expect(d.sobrante).toBe(0);
-    expect(r.totalAhorrado).toBe(0);
-    expect(r.saldosActualizados).toEqual([{ sobre_id: "s1", saldo_acumulado: -100 }]);
+    expect(d.rescate).toBe(100);
+    expect(r.totalAhorrado).toBe(-100);
+    expect(r.saldosActualizados).toHaveLength(0); // saldo era 0 y queda 0
   });
 
-  it("el deficit arrastrado reduce el sobrante de la semana siguiente", () => {
-    // semana 1: gasta 600 (deficit -100); semana 2: gasta 100 → neto -100+500-100 = 300
+  it("tras un rescate, la semana siguiente arranca limpia con su aportacion completa", () => {
+    // semana 1: gasta 600 (rescate 100, reinicia a 0); semana 2: gasta 100 → sobrante 400
     const r = run({
       sobres: [sobre()],
       gastos: [gasto("2026-06-15", 600), gasto("2026-06-22", 100)],
     });
-    expect(r.nuevos[0].detalle[0].sobrante).toBe(0);
-    expect(r.nuevos[1].detalle[0].saldo_inicio).toBe(-100);
-    expect(r.nuevos[1].detalle[0].sobrante).toBe(300);
-    expect(r.totalAhorrado).toBe(300);
+    expect(r.nuevos[0].detalle[0].rescate).toBe(100);
+    expect(r.nuevos[1].detalle[0].saldo_inicio).toBe(0);
+    expect(r.nuevos[1].detalle[0].sobrante).toBe(400);
+    expect(r.totalAhorrado).toBe(300); // -100 + 400
+  });
+
+  it("sobrantes y rescates de varios sobres se netean en total_a_ahorro", () => {
+    const s2 = sobre({ id: "s2", nombre: "Otro" });
+    const r = run({
+      sobres: [sobre(), s2],
+      gastos: [gasto("2026-06-22", 300), gasto("2026-06-22", 800, "s2")],
+    });
+    // s1 sobra 200, s2 rescatado con 300 → neto -100
+    expect(r.nuevos[0].total_a_ahorro).toBe(-100);
   });
 });
 
@@ -92,14 +103,24 @@ describe("sobre tipo acumula", () => {
     expect(r.saldosActualizados).toEqual([{ sobre_id: "s1", saldo_acumulado: 200 }]);
   });
 
-  it("arrastra saldo negativo entre semanas", () => {
+  it("un acumula en negativo tambien es rescatado y reinicia a 0", () => {
     const s = sobre({ tipo_cierre: "acumula" });
     const r = run({
       sobres: [s],
       gastos: [gasto("2026-06-15", 800), gasto("2026-06-22", 100)],
     });
-    // semana 1: 0+500-800 = -300; semana 2: -300+500-100 = 100
-    expect(r.nuevos[1].detalle[0].saldo_inicio).toBe(-300);
+    // semana 1: 0+500-800 = -300 → rescate 300, reinicia; semana 2: 0+500-100 = 400
+    expect(r.nuevos[0].detalle[0].rescate).toBe(300);
+    expect(r.nuevos[1].detalle[0].saldo_inicio).toBe(0);
+    expect(r.saldosActualizados).toEqual([{ sobre_id: "s1", saldo_acumulado: 400 }]);
+    expect(r.totalAhorrado).toBe(-300); // el rescate salio del Ahorro; el saldo positivo se queda en el sobre
+  });
+
+  it("el saldo acumulado amortigua el deficit antes de pedir rescate", () => {
+    const s = sobre({ tipo_cierre: "acumula", saldo_acumulado: 200 });
+    const r = run({ sobres: [s], gastos: [gasto("2026-06-22", 600)] });
+    // 200 + 500 - 600 = 100 → no hay rescate, conserva 100
+    expect(r.nuevos[0].detalle[0].rescate).toBe(0);
     expect(r.saldosActualizados).toEqual([{ sobre_id: "s1", saldo_acumulado: 100 }]);
   });
 });
@@ -122,19 +143,20 @@ describe("sobre Ahorro", () => {
     expect(r.ahorroActualizado).toEqual({ sobre_id: "ah", saldo_acumulado: 900 });
   });
 
-  it("el sobregiro de otro sobre NO descuenta del Ahorro", () => {
+  it("el sobregiro de otro sobre SI descuenta del Ahorro (rescate)", () => {
     const r = run({ sobres: [sobre(), ahorro], gastos: [gasto("2026-06-22", 900)] });
-    // sobrante 0; solo entra la aportacion propia: 1000 + 200 = 1200
-    expect(r.ahorroActualizado).toEqual({ sobre_id: "ah", saldo_acumulado: 1200 });
+    // rescate 400; aportacion propia 200: 1000 + 200 - 400 = 800
+    expect(r.ahorroActualizado).toEqual({ sobre_id: "ah", saldo_acumulado: 800 });
   });
 
-  it("nunca baja de 0", () => {
+  it("puede quedar negativo: 'me debo a mi mismo'", () => {
     const pobre = { ...ahorro, saldo_acumulado: 0, aportacion_semanal: 0 };
     const r = run({
       sobres: [sobre(), pobre],
       gastos: [gasto("2026-06-22", 500), gasto("2026-06-23", 800, "ah")],
     });
-    expect(r.ahorroActualizado.saldo_acumulado).toBe(0);
+    // sobre s1 cierra exacto (sobrante 0); gasto de 800 desde el Ahorro → -800
+    expect(r.ahorroActualizado.saldo_acumulado).toBe(-800);
   });
 
   it("no se actualiza si no hubo cierres", () => {

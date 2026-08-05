@@ -5,7 +5,9 @@
 App de finanzas personales que une dos metodos: la **libreta de gastos** (registro diario
 con categoria, medio de pago y monto) y la **cartera de sobres** (presupuesto semanal por
 concepto). Registrar un gasto descuenta automaticamente de su sobre. Al cerrar la semana,
-lo que sobra en sobres tipo `ahorro` pasa al sobre Ahorro; los tipo `acumula` arrastran saldo.
+lo que sobra en sobres tipo `ahorro` pasa al sobre Ahorro; los tipo `acumula` conservan
+su saldo positivo; y cualquier sobre que cierre en negativo es rescatado por el Ahorro
+(el deficit sale del Ahorro, que puede quedar negativo: "me debo a mi mismo").
 
 Objetivo: que el ahorro sea el resultado automatico del sistema, no de la fuerza de voluntad.
 
@@ -37,15 +39,16 @@ al registrar la cuenta, pero el usuario puede agregar o quitar desde Configuraci
 Categorias default: casa, renta, diversion, salud, escuela, tarjetas. Se almacenan en tabla
 `categorias` (dinamicas por cuenta), no como ENUM.
 
-## Reglas de negocio v2.1 (criticas — cualquier cambio debe avisarse a Juan)
+## Reglas de negocio v2.2 (criticas — cualquier cambio debe avisarse a Juan)
 
 1. **El dia de inicio de semana es configurable** (sabado, lunes o domingo) por cuenta.
    Se calcula a partir de la fecha del gasto; nunca se almacena como campo editable.
 2. Cada sobre tiene un **tipo de cierre**:
-   - `ahorro`: al cerrar la semana, el sobrante positivo pasa al sobre Ahorro y el sobre reinicia. Si hubo sobregiro, el deficit se arrastra a la siguiente semana (reduce la aportacion disponible). Sobregiro NO descuenta del Ahorro.
-   - `acumula`: el saldo se arrastra entre semanas (positivo o negativo).
+   - `ahorro`: al cerrar la semana, el sobrante positivo pasa al sobre Ahorro y el sobre reinicia a 0.
+   - `acumula`: el saldo positivo se arrastra entre semanas.
+   - **Rescate (v2.2)**: cualquier sobre (de ambos tipos) que cierre la semana en negativo es rescatado por el Ahorro: el deficit se descuenta del Ahorro y el sobre reinicia a 0. El saldo acumulado propio del sobre amortigua el deficit antes de pedir rescate.
    - Para ambos tipos: Disponible = `saldo_acumulado + aportacion_semanal - gastos_de_la_semana`.
-3. El sobre **Ahorro** es tipo `acumula`, con aportacion semanal propia, y ademas recibe sobrantes de sobres tipo `ahorro`.
+3. El sobre **Ahorro** es tipo `acumula`, con aportacion semanal propia; recibe sobrantes de sobres tipo `ahorro` y paga los rescates. **Puede quedar negativo**: significa "me debo a mi mismo" (gasto que el plan semanal no cubrio). La UI lo muestra como estado valido (tarjeta roja), no como error. Cada cierre guarda `sobrante` y `rescate` por sobre en el detalle.
 4. **Cierre automatico** de semanas pasadas con >=1 gasto; cada cierre es un **snapshot**.
    El cierre guarda presupuesto y gastado al momento; cambiar presupuestos despues no reescribe la historia.
    Semanas sin gastos NO se cierran (no inflar ahorro).

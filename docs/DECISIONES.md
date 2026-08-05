@@ -204,3 +204,24 @@ en momentos naturales), rewarded (opcional, usuario decide ver).
 Google Play, tiene el mayor inventario de anunciantes para LATAM, y hay plugin de Capacitor
 mantenido. La alternativa (mediacion con redes como Unity Ads, Meta, etc.) se implementaria
 en Fase C6 si el volumen lo justifica.
+
+## 2026-08-05 — Regla de rescate: el Ahorro paga los sobregiros (v2.2)
+
+**Decision**: cambiar la regla de cierre semanal. Antes, un sobre que cerraba en negativo
+arrastraba su deficit a la siguiente semana (y el Ahorro nunca bajaba de 0). Ahora, cualquier
+sobre (tipo `ahorro` o `acumula`) que cierre en negativo es **rescatado por el Ahorro**: el
+deficit se descuenta del sobre Ahorro y el sobre reinicia en 0. El Ahorro **puede quedar
+negativo** — interpretacion: "me debo a mi mismo" (dinero ya gastado que el plan semanal no
+cubrio). El cierre guarda `sobrante` y `rescate` por sobre en el snapshot.
+
+**Alternativas consideradas**:
+- Mantener el arrastre (regla vieja): castiga la semana siguiente del sobre, pero el Ahorro
+  "se salva solo" mientras hay deudas en sobres — ahorras dinero que realmente no tienes.
+- Regla configurable por cuenta (`modo_cochinito`): descartada por Juan; regla global.
+- Que los `acumula` devuelvan al Ahorro sus rescates con sobrantes futuros: descartada por
+  ahora; los saldos positivos de `acumula` se leen como reservas etiquetadas.
+
+**Por que**: Juan valido ambas reglas con una simulacion sobre sus 188 gastos reales (8 semanas).
+Con la regla nueva todos los sobres amanecen usables cada sabado y la deuda real se concentra
+en un solo numero honesto. La posicion neta del sistema es identica bajo ambas reglas; cambia
+donde se visualiza el deficit y que conducta incentiva.

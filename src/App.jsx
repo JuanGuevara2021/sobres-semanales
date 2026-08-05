@@ -572,11 +572,15 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
         </div>
       ))}
 
-      {cierre && (
+      {cierre && (Number(cierre.total_a_ahorro) >= 0 ? (
         <div className="rounded-xl px-3 py-2 mb-3 text-sm font-semibold" style={{ background: "#E7F3EC", color: "var(--green)" }}>
           💰 {money(cierre.total_a_ahorro)} pasaron al Ahorro al cerrar
         </div>
-      )}
+      ) : (
+        <div className="rounded-xl px-3 py-2 mb-3 text-sm font-semibold" style={{ background: "#FDECEA", color: "var(--red)" }}>
+          🐷 El Ahorro rescató {money(-Number(cierre.total_a_ahorro))} de sobres en negativo al cerrar
+        </div>
+      ))}
 
       <div className="grid grid-cols-2 gap-2 mb-4">
         {gastables.map((s) => {
@@ -818,7 +822,7 @@ function TabSobres({ sobres, gastos, cierres, presupSemanal, onSaveSobre, onDele
         <button onClick={startNew} className="w-full rounded-xl py-2.5 text-sm font-bold mt-1" style={{ background: "color-mix(in srgb, var(--green) 10%, transparent)", color: "var(--green)", borderRadius: "20px" }}>+ Agregar sobre</button>
       )}
       <p className="text-xs mt-4 mb-6 leading-relaxed" style={{ color: "var(--ink-soft)" }}>
-        🐷 El sobre Ahorro recibe automaticamente lo que sobra de los sobres tipo "ahorro". Los tipo "acumula" arrastran su saldo.
+        🐷 El sobre Ahorro recibe lo que sobra de los sobres tipo "ahorro" y rescata a cualquier sobre que cierre en negativo. Puede quedar en rojo: significa que te debes a ti mismo. Los tipo "acumula" conservan su saldo positivo.
       </p>
 
       {/* Seccion Ahorro */}
@@ -829,8 +833,8 @@ function TabSobres({ sobres, gastos, cierres, presupSemanal, onSaveSobre, onDele
         const cierresOrden = [...(cierres || [])].sort((a, b) => (a.semana < b.semana ? 1 : -1));
         return (
           <>
-            <div className="rounded-2xl p-4 mb-3 text-center" style={{ background: "var(--green)" }}>
-              <div className="text-xs font-semibold" style={{ color: "rgba(255,255,255,.75)" }}>🐷 Ahorro acumulado</div>
+            <div className="rounded-2xl p-4 mb-3 text-center" style={{ background: saldoAhorro < 0 ? "var(--red)" : "var(--green)" }}>
+              <div className="text-xs font-semibold" style={{ color: "rgba(255,255,255,.75)" }}>🐷 {saldoAhorro < 0 ? "Te debes a ti mismo" : "Ahorro acumulado"}</div>
               <div className="num text-3xl font-bold text-white mt-1">{money(saldoAhorro)}</div>
               <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,.75)" }}>
                 {cierresOrden.length} semana{cierresOrden.length === 1 ? "" : "s"} cerrada{cierresOrden.length === 1 ? "" : "s"}
@@ -862,7 +866,7 @@ function TabSobres({ sobres, gastos, cierres, presupSemanal, onSaveSobre, onDele
                 <div key={c.semana} className="rounded-xl mb-2 overflow-hidden" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
                   <div className="flex items-center justify-between px-3 py-2.5">
                     <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{weekLabel(c.semana)}</span>
-                    <span className="num text-sm font-bold" style={{ color: "var(--green)" }}>+{money(Number(c.total_a_ahorro))}</span>
+                    <span className="num text-sm font-bold" style={{ color: Number(c.total_a_ahorro) < 0 ? "var(--red)" : "var(--green)" }}>{Number(c.total_a_ahorro) >= 0 ? "+" : ""}{money(Number(c.total_a_ahorro))}</span>
                   </div>
                 </div>
               );
@@ -1017,13 +1021,18 @@ function TabAhorro({ sobres, cierres, gastos }) {
 
   return (
     <div>
-      <div className="rounded-2xl p-5 mb-4 text-center" style={{ background: "var(--green)" }}>
-        <div className="text-xs font-semibold" style={{ color: "rgba(255,255,255,.75)" }}>🐷 Ahorro acumulado</div>
+      <div className="rounded-2xl p-5 mb-4 text-center" style={{ background: saldoAhorro < 0 ? "var(--red)" : "var(--green)" }}>
+        <div className="text-xs font-semibold" style={{ color: "rgba(255,255,255,.75)" }}>🐷 {saldoAhorro < 0 ? "Te debes a ti mismo" : "Ahorro acumulado"}</div>
         <div className="num text-4xl font-bold text-white mt-1">{money(saldoAhorro)}</div>
         <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,.75)" }}>
           {cierresOrden.length} semana{cierresOrden.length === 1 ? "" : "s"} cerrada{cierresOrden.length === 1 ? "" : "s"}
           {sobreAhorro ? ` · +${money(Number(sobreAhorro.aportacion_semanal))}/sem` : ""}
         </div>
+        {saldoAhorro < 0 && (
+          <div className="text-xs mt-2 leading-relaxed" style={{ color: "rgba(255,255,255,.85)" }}>
+            El Ahorro rescató a sobres que cerraron en negativo. Cada sobrante nuevo va pagando esta deuda contigo.
+          </div>
+        )}
       </div>
 
       {retiros.length > 0 && (
@@ -1048,14 +1057,18 @@ function TabAhorro({ sobres, cierres, gastos }) {
           <div key={c.semana} className="rounded-xl mb-2 overflow-hidden" style={{ background: "var(--card)", border: "1px solid var(--line)" }}>
             <button className="w-full flex items-center justify-between px-3 py-2.5" onClick={() => setOpen(open === c.semana ? null : c.semana)}>
               <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{weekLabel(c.semana)}</span>
-              <span className="num text-sm font-bold" style={{ color: "var(--green)" }}>+{money(Number(c.total_a_ahorro))}</span>
+              <span className="num text-sm font-bold" style={{ color: Number(c.total_a_ahorro) < 0 ? "var(--red)" : "var(--green)" }}>{Number(c.total_a_ahorro) >= 0 ? "+" : ""}{money(Number(c.total_a_ahorro))}</span>
             </button>
             {open === c.semana && (
               <div className="px-3 pb-3">
                 {detalle.map((d, i) => (
                   <div key={d.sobre_id || i} className="flex items-center justify-between text-xs py-1" style={{ color: "var(--ink-soft)" }}>
                     <span>{d.emoji} {d.nombre} — gasto {money(d.gastado)} de {money(d.aportacion || d.presupuesto)}{d.tipo_cierre === "acumula" ? " (acumula)" : ""}</span>
-                    <span className="num font-semibold" style={{ color: d.sobrante > 0 ? "var(--green)" : "var(--ink-soft)" }}>+{money(d.sobrante)}</span>
+                    {d.rescate > 0 ? (
+                      <span className="num font-semibold" style={{ color: "var(--red)" }}>rescate -{money(d.rescate)}</span>
+                    ) : (
+                      <span className="num font-semibold" style={{ color: d.sobrante > 0 ? "var(--green)" : "var(--ink-soft)" }}>+{money(d.sobrante)}</span>
+                    )}
                   </div>
                 ))}
               </div>
