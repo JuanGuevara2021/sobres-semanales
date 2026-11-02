@@ -1101,7 +1101,9 @@ function TabPagos({ pagos, sobres, msi, tarjetas, gastos, onSavePago, onDeletePa
   const [tDiaPago, setTDiaPago] = useState(""); const [tMsg, setTMsg] = useState("");
 
   const gastables = sobres.filter((s) => !s.es_ahorro);
-  const pagosActivos = pagos.filter((p) => p.activo);
+  // Pagos de tarjeta primero; dentro de cada grupo se respeta el orden por nombre de la consulta
+  const esTarjeta = (p) => (p.categoria === "tarjetas" ? 0 : 1);
+  const pagosActivos = pagos.filter((p) => p.activo).sort((a, b) => esTarjeta(a) - esTarjeta(b));
   const tarjetasActivas = (tarjetas || []).filter((t) => t.activo);
   const msiActivos = msi.filter((m) => m.activo);
   const tarjetaPagadaEsteMes = (tarjetaId) => {
