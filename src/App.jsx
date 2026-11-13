@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { CuentaProvider, useCuenta } from "./contexts/CuentaContext";
 import { supabase } from "./lib/supabase";
@@ -6,6 +6,9 @@ import { toStr, fromStr, addDays, MESES, DIAS, DIAS_INICIO_OPTIONS, COLORES_CATE
 import { calcularCierres } from "./lib/cierres";
 import { getPagosProximos, calcEstimadoTarjeta, getTarjetaRecordatorios, calcMSI } from "./lib/pagos";
 import { logEvento } from "./lib/eventos";
+import { calcularQuincena } from "./lib/quincena";
+import { leerQuincenaLocal, cargarQuincenaCfg, guardarQuincenaCfg, invitacionOculta, ocultarInvitacion } from "./lib/quincenaConfig";
+import { QuincenaCard, QuincenaInvitacion, QuincenaDetalle, QuincenaConfig } from "./components/Quincena";
 import Login, { NuevaPassword } from "./components/Login";
 import Landing from "./components/Landing";
 import OnboardingWizard from "./components/OnboardingWizard";
@@ -373,7 +376,7 @@ function ConfigSaldosModal({ sobres, onSave, onClose }) {
 }
 
 /* ---------- Tab Semana (F2 completo) ---------- */
-function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemanal, offset, setOffset, onAdd, onDelete, onEditGasto, onPagar, onPosponer, onPagarTarjeta }) {
+function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemanal, offset, setOffset, onAdd, onDelete, onEditGasto, onPagar, onPosponer, onPagarTarjeta, quincenaSlot }) {
   const { money, weekStartOf, weekOf, weekLabel, fmtDia, categorias, catLabel, catColor } = useCuenta();
   const [showForm, setShowForm] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null);
@@ -453,6 +456,8 @@ function TabSemana({ sobres, gastos, cierres, pagos, tarjetas, msi, presupSemana
           </>
         )}
       </div>
+
+      {isCurrent && quincenaSlot}
 
       {/* Recordatorios de tarjetas */}
       {tarjetasProximas.map((t) => {
@@ -1724,8 +1729,8 @@ function TabAnalisis({ gastos, sobres, tarjetas, presupSemanal, onNavToWeek, ini
 }
 
 /* ---------- Ajustes (F6) ---------- */
-function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose, gastos, sobres, pagos, tarjetas }) {
-  const { categorias, diaInicio, updateDiaInicio, addCategoria, removeCategoria } = useCuenta();
+function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose, gastos, sobres, pagos, tarjetas, quincenaCfg, onQuincena }) {
+  const { categorias, diaInicio, updateDiaInicio, addCategoria, removeCategoria, money } = useCuenta();
   const [newCatNombre, setNewCatNombre] = useState("");
   const [newCatColor, setNewCatColor] = useState(COLORES_CATEGORIA[0]);
   const [showAddCat, setShowAddCat] = useState(false);
@@ -1788,6 +1793,18 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
             </button>
           ))}
         </div>
+
+        <p className="text-xs font-bold mb-2" style={{ color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Quincena</p>
+        <button onClick={onQuincena} className="w-full flex items-center gap-3 rounded-xl px-3 py-3 mb-5" style={{ background: "var(--paper)", border: "1px solid var(--line)" }}>
+          <span className="text-lg">💵</span>
+          <div className="text-left flex-1">
+            <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Sueldo y dias de cobro</div>
+            <div className="text-xs" style={{ color: "var(--ink-soft)" }}>
+              {quincenaCfg ? `${money(quincenaCfg.sueldo)} · dias ${quincenaCfg.dia1} y ${quincenaCfg.dia2 === 31 ? "fin de mes" : quincenaCfg.dia2}` : "Sin configurar"}
+            </div>
+          </div>
+          <ChevronRight size={16} style={{ color: "var(--ink-soft)" }} />
+        </button>
 
         <p className="text-xs font-bold mb-2" style={{ color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Categorias</p>
         <div className="space-y-1.5 mb-3">
@@ -1983,7 +2000,7 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
 function AppMain() {
   const { perfil, logout } = useAuth();
   const cuentaId = perfil?.cuenta_id;
-  const { money, weekStartOf, weekOf, weekLabel, loaded: cuentaLoaded } = useCuenta();
+  const { money, weekStartOf, weekOf, weekLabel, diaInicio, loaded: cuentaLoaded } = useCuenta();
 
   useEffect(() => { logEvento("app_abierta"); }, []);
 
@@ -2012,6 +2029,9 @@ function AppMain() {
   const [fondoCustom, setFondoCustom] = useState(() => localStorage.getItem("sobres_fondo") || "");
   const [pilar, setPilar] = useState(esPublica ? (perfil?.pilar_actual || 1) : 4);
   const [showTransicion, setShowTransicion] = useState(null);
+  const [quincenaCfg, setQuincenaCfg] = useState(() => leerQuincenaLocal(cuentaId));
+  const [quincenaVista, setQuincenaVista] = useState(null); // null | "detalle" | "config" | "config:detalle" (vuelve al detalle al cerrar)
+  const [quincenaOculta, setQuincenaOculta] = useState(() => invitacionOculta(cuentaId));
 
   const cargarDatos = useCallback(async () => {
     if (!cuentaId) return;
@@ -2044,6 +2064,28 @@ function AppMain() {
   }, [cuentaId, weekStartOf, weekOf]);
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
+
+  // Quincena: la copia local pinta de inmediato; la base manda en cuanto responde
+  useEffect(() => {
+    if (!cuentaId) return;
+    let vivo = true;
+    cargarQuincenaCfg(cuentaId).then((cfg) => { if (vivo) setQuincenaCfg(cfg); });
+    return () => { vivo = false; };
+  }, [cuentaId]);
+
+  const quincena = useMemo(() => (quincenaCfg
+    ? calcularQuincena({ sueldo: quincenaCfg.sueldo, dia1: quincenaCfg.dia1, dia2: quincenaCfg.dia2, gastos, pagos, tarjetas, msi, sobres, weekOf, diaInicioSemana: diaInicio })
+    : null), [quincenaCfg, gastos, pagos, tarjetas, msi, sobres, weekOf, diaInicio]);
+
+  // si se desactiva la quincena estando en el detalle, no dejar la vista colgada
+  useEffect(() => { if (quincenaVista === "detalle" && !quincena) setQuincenaVista(null); }, [quincenaVista, quincena]);
+
+  const saveQuincena = async (valor) => {
+    const { cfg, enNube } = await guardarQuincenaCfg(cuentaId, valor);
+    setQuincenaCfg(cfg);
+    logEvento(cfg ? "quincena_configurada" : "quincena_desactivada");
+    mostrarToast(enNube ? "✓ Guardado" : "Guardado solo en este dispositivo");
+  };
 
   useEffect(() => {
     if (!cuentaId) return;
@@ -2268,7 +2310,10 @@ function AppMain() {
           <GuiaPilar1 gastosCount={gastos.length} onAvanzar={avanzarManual} />
         )}
 
-        {tab === "semana" && <TabSemana sobres={sobres} gastos={gastos} cierres={cierres} pagos={pagos} tarjetas={tarjetas} msi={msi} presupSemanal={presupSemanal} offset={offset} setOffset={setOffset} onAdd={addGasto} onDelete={deleteGasto} onEditGasto={editGasto} onPagar={pagarRecurrente} onPosponer={posponerPago} onPagarTarjeta={pagarTarjeta} />}
+        {tab === "semana" && <TabSemana sobres={sobres} gastos={gastos} cierres={cierres} pagos={pagos} tarjetas={tarjetas} msi={msi} presupSemanal={presupSemanal} offset={offset} setOffset={setOffset} onAdd={addGasto} onDelete={deleteGasto} onEditGasto={editGasto} onPagar={pagarRecurrente} onPosponer={posponerPago} onPagarTarjeta={pagarTarjeta}
+          quincenaSlot={pilar >= 4 && (quincena
+            ? <QuincenaCard q={quincena} onAbrir={() => { logEvento("quincena_detalle_abierto"); setQuincenaVista("detalle"); }} />
+            : !quincenaOculta && <QuincenaInvitacion onConfigurar={() => setQuincenaVista("config")} onOcultar={() => { ocultarInvitacion(cuentaId); setQuincenaOculta(true); }} />)} />}
         {tab === "libreta" && <TabLibreta sobres={sobres} gastos={gastos} tarjetas={tarjetas} onEditGasto={editGasto} onDelete={deleteGasto} />}
         {tab === "sobres" && <TabSobres sobres={sobres} gastos={gastos} cierres={cierres} presupSemanal={presupSemanal} onSaveSobre={saveSobre} onDeleteSobre={deleteSobre} onSavePresup={savePresup} onConfigSaldos={configSaldos} />}
         {tab === "pagos" && <TabPagos pagos={pagos} sobres={sobres} msi={msi} tarjetas={tarjetas} gastos={gastos} onSavePago={savePago} onDeletePago={deletePago} onPagar={pagarRecurrente} onSaveMSI={saveMSI} onDeleteMSI={deleteMSI} onSaveTarjeta={saveTarjeta} onDeleteTarjeta={deleteTarjeta} onPagarTarjeta={pagarTarjeta} />}
@@ -2283,7 +2328,9 @@ function AppMain() {
       )}
 
       {showPagoForm && <GastoForm sobres={sobres} tarjetas={tarjetas} viewedWS={viewedWS} isCurrent={true} onAdd={confirmarPago} onClose={() => setShowPagoForm(null)} prefill={showPagoForm} />}
-      {showSettings && <SettingsPanel tema={tema} onChangeTema={cambiarTema} fondoCustom={fondoCustom} onChangeFondo={cambiarFondo} onClose={() => setShowSettings(false)} gastos={gastos} sobres={sobres} pagos={pagos} tarjetas={tarjetas} />}
+      {showSettings && <SettingsPanel tema={tema} onChangeTema={cambiarTema} fondoCustom={fondoCustom} onChangeFondo={cambiarFondo} onClose={() => setShowSettings(false)} gastos={gastos} sobres={sobres} pagos={pagos} tarjetas={tarjetas} quincenaCfg={quincenaCfg} onQuincena={() => { setShowSettings(false); setQuincenaVista("config"); }} />}
+      {quincenaVista === "detalle" && quincena && <QuincenaDetalle q={quincena} onClose={() => setQuincenaVista(null)} onConfigurar={() => setQuincenaVista("config:detalle")} />}
+      {quincenaVista?.startsWith("config") && <QuincenaConfig cfg={quincenaCfg} onSave={saveQuincena} onClose={() => setQuincenaVista((v) => (v === "config:detalle" ? "detalle" : null))} />}
 
       <PilarTransicion transicion={showTransicion} onContinuar={() => {
         const destino = showTransicion?.tabDestino;

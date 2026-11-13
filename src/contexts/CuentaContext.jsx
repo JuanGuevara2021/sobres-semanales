@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo } 
 import { supabase } from "../lib/supabase";
 import { createMoneyFormatter, createWeekHelpers, CATEGORIAS_DEFAULT } from "../lib/config";
 
-const CuentaContext = createContext(null);
+export const CuentaContext = createContext(null);
 
 export function CuentaProvider({ cuentaId, children }) {
   const [moneda, setMoneda] = useState("MXN");

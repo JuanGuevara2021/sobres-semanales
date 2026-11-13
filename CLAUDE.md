@@ -19,7 +19,7 @@ de semana configurable. Incluye tour de bienvenida, onboarding por plantillas, y
 
 - **Frontend**: React + Vite. Punto de partida: `SobresSemanales.jsx` (prototipo funcional ya validado).
 - **Backend/datos**: Supabase (Postgres + Auth + Realtime), plan gratuito.
-- **Distribucion**: PWA desplegada en Vercel. Proxima fase: empaquetar con Capacitor para Google Play.
+- **Distribucion**: PWA desplegada en Vercel, instalada desde el navegador. Google Play y la monetizacion (Pro, anuncios) se cancelaron el 2026-11-13: todo es libre. La carpeta `android/` (Capacitor) se conserva pero ya no se publica.
 - **Multiusuario**: una "cuenta" (hogar) compartida; usuarios autenticados ven y editan los mismos datos desde dispositivos distintos, con sincronizacion en tiempo real.
 - **Configuracion dinamica**: `CuentaContext` provee moneda, dia de inicio, categorias, funciones de formato. Todo configurable por cuenta.
 
@@ -59,11 +59,22 @@ Categorias default: casa, renta, diversion, salud, escuela, tarjetas. Se almacen
 9. **Moneda**: configurable por cuenta (MXN, COP, ARS, PEN, CLP, USD). Formato via `Intl.NumberFormat`.
 10. Cambios de presupuesto aplican de la semana en curso en adelante; nunca al pasado.
 
+## Quincena (2026-11-13)
+
+Vista que responde "cuanto me va a quedar del sueldo". Logica pura en `src/lib/quincena.js`,
+UI en `src/components/Quincena.jsx`. Reglas (detalle en `docs/DECISIONES.md`):
+
+- El sueldo solo baja cuando el dinero **sale**: efectivo, debito, transferencia y pagos de tarjeta.
+- Una compra **a credito** no baja el sueldo de esta quincena (se informa aparte): sale al pagar la tarjeta.
+- "Por pagar" = pagos recurrentes y de tarjeta con fecha en la quincena y sin gasto registrado.
+- "Te va a quedar" = sueldo - ya salio - por pagar. "Libre de verdad" resta ademas el plan de sobres pendiente.
+
 ## Modelo de datos v3 (post Fase C1)
 
 ```
 cuentas    { id, nombre, presupuesto_semanal, moneda (text, default 'MXN'),
-             dia_inicio_semana (int 0-6, default 6), inicio_sobres }
+             dia_inicio_semana (int 0-6, default 6), inicio_sobres,
+             sueldo_quincenal NULL (0 = desactivada), dia_cobro_1, dia_cobro_2 }
 perfiles   { user_id (auth), cuenta_id, nombre, tema }
 
 categorias { id, cuenta_id, nombre, label, color, orden, activo }

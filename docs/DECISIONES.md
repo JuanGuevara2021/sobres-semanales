@@ -225,3 +225,55 @@ cubrio). El cierre guarda `sobrante` y `rescate` por sobre en el snapshot.
 Con la regla nueva todos los sobres amanecen usables cada sabado y la deuda real se concentra
 en un solo numero honesto. La posicion neta del sistema es identica bajo ambas reglas; cambia
 donde se visualiza el deficit y que conducta incentiva.
+
+## 2026-11-13 — Se cancela la monetizacion y Google Play: la app es una PWA libre
+
+**Decision**: Juan deja de publicar en Google Play (el ciclo AAB → revision → 12 testers x 14
+dias resulto demasiado largo para el uso que se le da) y cancela la monetizacion. La app se usa
+como PWA instalada desde el navegador. Se quitaron del codigo el plan Pro (modal, candados de
+temas y de exportar CSV), los anuncios (AdMob), las compras (RevenueCat) y la peticion de
+resena; los 8 temas y la exportacion quedan libres para todos. Tambien se desinstalaron esos
+tres paquetes y se limpiaron terminos, privacidad y la portada.
+
+**Lo que se conserva**: la carpeta `android/` y Capacitor (por si algun dia se retoma), los
+pilares progresivos del modo publico y la columna `perfiles.es_pro` (ya nadie la lee).
+
+**Consecuencia conocida**: los recordatorios de pago eran notificaciones locales de Android;
+en la PWA no existen. Queda solo el banner dentro de la app (la seccion de notificaciones de
+Ajustes se oculta en el navegador).
+
+## 2026-11-13 — Quincena: modelo de flujo de efectivo
+
+**Decision**: nueva vista "Quincena". El usuario captura su sueldo quincenal y sus dias de
+cobro; la app muestra cuanto ya salio, cuanto esta comprometido y cuanto le va a quedar.
+Logica pura en `src/lib/quincena.js` (27 tests). Reglas:
+
+1. **La quincena** va del ultimo dia de cobro al dia anterior al siguiente (dias configurables;
+   31 = fin de mes; si el mes no tiene el dia se usa el ultimo).
+2. **El sueldo solo baja cuando el dinero sale**: gastos en efectivo, debito o transferencia,
+   y los pagos de tarjeta (categoria `tarjetas`).
+3. **Una compra a credito NO baja el sueldo de esta quincena**; se informa aparte. Sale cuando
+   se paga la tarjeta. Asi no se cuenta dos veces (al comprar y al pagar).
+4. **Por pagar** = pagos recurrentes y pagos de tarjeta con fecha dentro de la quincena que
+   aun no tienen gasto registrado (misma convencion que los recordatorios: gasto con
+   `nota === nombre del pago`, o `"Pago <tarjeta>"`).
+5. **Estimado de la tarjeta** = MSI del mes + compras a credito del corte que se liquida
+   (requiere `dia_corte`); si da 0 se usa el monto del pago recurrente ligado.
+6. **Reservado para sobres** = lo que falta gastar del plan semanal de hoy al siguiente cobro,
+   sin duplicar los pagos fijos que salen de un sobre. Se muestra como segundo paso
+   ("Libre de verdad"), separado de "Te va a quedar".
+
+**Alternativas consideradas**:
+- *Devengado* (toda compra baja el sueldo al hacerla, sin importar el medio): mas simple de
+  explicar, pero cuenta doble las compras a credito cuando despues se registra el pago de la
+  tarjeta, y no responde "cuanto dinero me queda de verdad".
+- Pestaña propia: descartada, ya hay 5 pestañas; va como tarjeta en Semana con detalle a
+  pantalla completa (asi se ve cada vez que se registra un gasto).
+
+**Datos**: `cuentas.sueldo_quincenal`, `dia_cobro_1`, `dia_cobro_2`
+(`supabase/migracion_quincena.sql`). Mientras la migracion no se corra, la configuracion vive
+en el dispositivo y se sube sola despues.
+
+**Supuestos a validar con uso real**: (a) que Juan registra con `medio_pago = credito` y la
+tarjeta correcta lo que paga con tarjeta de credito; (b) que los dias de cobro no se recorren
+cuando caen en fin de semana.

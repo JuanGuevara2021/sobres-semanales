@@ -95,7 +95,19 @@ Etiquetas: **[JUAN]** = solo tu puedes hacerlo · **[CC]** = lo hace Claude Code
 
 ---
 
-## Fase C — Comercializacion (Google Play)
+## Fase D — PWA personal, sin monetizacion (desde 2026-11-13)
+
+Juan dejo de publicar en Google Play y cancelo la monetizacion: la app se usa instalada desde
+el navegador y todo es libre. La Fase C queda como historial.
+
+- [x] **[CC]** Quitar Pro, anuncios, compras y peticion de resena; temas y exportar CSV libres
+- [x] **[CC]** Quincena: sueldo, dias de cobro, cuanto salio / por pagar / te va a quedar (`src/lib/quincena.js`, 27 tests)
+- [ ] **[JUAN]** Correr `supabase/migracion_quincena.sql` en Supabase (mientras tanto el sueldo se guarda solo en el dispositivo)
+- [ ] **[JUAN]** Correr `supabase/migration_rls_plantillas.sql` (seguridad de la tabla de plantillas)
+- [ ] **[CC]** Recordatorios de pago en la PWA (las notificaciones locales solo existian en Android)
+- [ ] **[CC]** Pendientes de la auditoria UX (M1-M5) y chip "+ Nueva" categoria en GastoForm (venian como v1.1.4)
+
+## Fase C — Comercializacion (Google Play) — CANCELADA 2026-11-13
 
 ### Estado actual: preparando version publica
 
