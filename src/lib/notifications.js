@@ -24,6 +24,12 @@ function esNativo() {
   return Capacitor.isNativePlatform();
 }
 
+/* Las notificaciones locales solo existen en la app nativa (Capacitor).
+   En el navegador/PWA no hay nada que programar: la UI debe ocultar la opcion. */
+export function notificacionesDisponibles() {
+  return esNativo();
+}
+
 export async function initNotifications() {
   if (!esNativo()) return false;
   try {

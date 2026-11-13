@@ -16,8 +16,6 @@
     "cap:run": "npx cap run android"
   },
   "dependencies": {
-    "@capacitor-community/admob": "^8.0.0",
-    "@capacitor-community/in-app-review": "^8.0.0",
     "@capacitor-firebase/crashlytics": "^8.3.0",
     "@capacitor/android": "^8.4.1",
     "@capacitor/cli": "^8.4.1",
@@ -27,7 +25,6 @@
     "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
-    "@revenuecat/purchases-capacitor": "^13.2.0",
     "@supabase/supabase-js": "^2.108.1",
     "lucide-react": "^1.18.0",
     "react": "^19.2.7",

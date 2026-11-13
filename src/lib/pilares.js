@@ -50,15 +50,3 @@ const TRANSICIONES = {
 export function getTransicion(nuevoPilar) {
   return TRANSICIONES[nuevoPilar] || null;
 }
-
-export const NIVEL_ADS = {
-  1: "ninguno",
-  2: "banner",
-  3: "banner_interstitial_light",
-  4: "banner_interstitial_full",
-};
-
-export function getNivelAds(pilar) {
-  if (!esPublica) return "ninguno";
-  return NIVEL_ADS[pilar] || "ninguno";
-}

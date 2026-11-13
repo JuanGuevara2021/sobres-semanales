@@ -13,11 +13,10 @@ import PinLock, { hasPin, isUnlocked, setPin, getPin, clearUnlock } from "./comp
 import WelcomeTour, { needsTour, markTourDone } from "./components/WelcomeTour";
 import { esPublica } from "./lib/appMode";
 import { getTabsVisibles, calcPilarSugerido, getTransicion } from "./lib/pilares";
-import { initAds, showBanner, hideBanner, prepareInterstitial, showInterstitial, shouldShowAds } from "./lib/ads";
-import { exportGastosCSV, purchasePro, restorePurchases, isProAvailable, PRECIO_PRO, APP_VERSION } from "./lib/pro";
+import { exportGastosCSV } from "./lib/exportar";
+import { APP_VERSION } from "./lib/version";
 import { initCrashlytics, logError } from "./lib/crashlytics";
-import { markFirstUse, tryRequestReview } from "./lib/review";
-import { initNotifications, programarNotificaciones, getDiasAntes, setDiasAntes, OPCIONES_ANTELACION } from "./lib/notifications";
+import { programarNotificaciones, getDiasAntes, setDiasAntes, OPCIONES_ANTELACION, notificacionesDisponibles } from "./lib/notifications";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, ReferenceLine, CartesianGrid, LabelList,
@@ -71,19 +70,19 @@ const TEMAS = {
   oceano: {
     label: "Oceano", paper: "#EDF4F8", line: "#C4D9E8", card: "#FFFFFF",
     ink: "#1B3A4B", inkSoft: "#5B7D8F", green: "#0891B2", amber: "#D97706",
-    red: "#DC2626", flap: "#D6E8F0", pro: true,
+    red: "#DC2626", flap: "#D6E8F0",
     bg: "repeating-linear-gradient(to bottom,transparent 0 31px,rgba(8,145,178,.05) 31px 32px),#EDF4F8",
   },
   bosque: {
     label: "Bosque", paper: "#F0F5ED", line: "#C4D4BC", card: "#FAFCF8",
     ink: "#1A3020", inkSoft: "#5A7060", green: "#2D6A1E", amber: "#A67C00",
-    red: "#B83030", flap: "#DCE8D6", pro: true,
+    red: "#B83030", flap: "#DCE8D6",
     bg: "repeating-linear-gradient(to bottom,transparent 0 31px,rgba(45,106,30,.05) 31px 32px),#F0F5ED",
   },
   medianoche: {
     label: "Noche", paper: "#0F172A", line: "#1E293B", card: "#1E293B",
     ink: "#E2E8F0", inkSoft: "#94A3B8", green: "#22D3EE", amber: "#FBBF24",
-    red: "#FB7185", flap: "#334155", accent: "#3B4C63", pro: true,
+    red: "#FB7185", flap: "#334155", accent: "#3B4C63",
     bg: "#0F172A",
   },
 };
@@ -108,91 +107,6 @@ async function autoClose(sobres, gastos, cierresExistentes, cuentaId, weekStartO
     await supabase.from("sobres").update({ saldo_acumulado: ahorroActualizado.saldo_acumulado }).eq("id", ahorroActualizado.sobre_id);
   }
   return { nuevos: insertados || [], totalAhorrado };
-}
-
-/* ============================================================
-   Modal Pro
-   ============================================================ */
-function ProModal({ onClose, onUpgrade }) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const handlePurchase = async () => {
-    setLoading(true);
-    setError(null);
-    const result = await purchasePro();
-    setLoading(false);
-    if (result.success) onUpgrade();
-    else if (result.error) setError(result.error);
-  };
-
-  const handleRestore = async () => {
-    setLoading(true);
-    const restored = await restorePurchases();
-    setLoading(false);
-    if (restored) onUpgrade();
-    else setError("No se encontraron compras anteriores");
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center md3-sheet-backdrop" onClick={onClose}>
-      <div className="w-full max-w-md md3-sheet p-5 pb-8 overflow-y-auto" style={{ background: "var(--card)", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
-        <div className="md3-drag-handle" />
-        <div className="text-center mb-5">
-          <div className="text-4xl mb-2">⭐</div>
-          <h2 className="text-xl font-extrabold mb-1" style={{ color: "var(--ink)" }}>Sobres Pro</h2>
-          <p className="text-sm" style={{ color: "var(--ink-soft)" }}>Saca el maximo provecho de tu dinero</p>
-        </div>
-
-        <div className="space-y-3 mb-6">
-          <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "var(--paper)", border: "1px solid var(--line)" }}>
-            <span className="text-lg">🚫</span>
-            <div>
-              <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Sin anuncios</div>
-              <div className="text-xs" style={{ color: "var(--ink-soft)" }}>Usa la app sin interrupciones</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "var(--paper)", border: "1px solid var(--line)" }}>
-            <span className="text-lg">📊</span>
-            <div>
-              <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Exportar gastos</div>
-              <div className="text-xs" style={{ color: "var(--ink-soft)" }}>Descarga tus datos en CSV/Excel</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "var(--paper)", border: "1px solid var(--line)" }}>
-            <span className="text-lg">🎨</span>
-            <div>
-              <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Temas exclusivos</div>
-              <div className="text-xs" style={{ color: "var(--ink-soft)" }}>Oceano, Bosque y Medianoche</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="text-center mb-4">
-          <div className="text-2xl font-extrabold" style={{ color: "var(--green)" }}>{PRECIO_PRO}<span className="text-sm font-normal" style={{ color: "var(--ink-soft)" }}> / año</span></div>
-          <div className="text-xs" style={{ color: "var(--ink-soft)" }}>Solo $10/mes — menos que un café</div>
-          <div className="text-xs mt-1" style={{ color: "var(--ink-soft)" }}>Cancela cuando quieras desde Google Play</div>
-        </div>
-
-        {error && <div className="text-xs text-center mb-3" style={{ color: "var(--red)" }}>{error}</div>}
-
-        {!isProAvailable() && (
-          <div className="text-xs text-center mb-3 rounded-xl px-3 py-2" style={{ background: "var(--paper)", color: "var(--ink-soft)", border: "1px solid var(--line)" }}>
-            Disponible solo en la app de Google Play
-          </div>
-        )}
-
-        <button onClick={handlePurchase} disabled={loading || !isProAvailable()} className="w-full py-3.5 font-bold text-sm md3-btn-filled mb-2"
-          style={{ background: "var(--green)", color: "#fff", opacity: loading || !isProAvailable() ? 0.6 : 1 }}>
-          {loading ? "Procesando..." : "Suscribirse a Pro"}
-        </button>
-        <button onClick={handleRestore} disabled={loading || !isProAvailable()} className="w-full py-2.5 text-xs font-semibold"
-          style={{ color: "var(--ink-soft)" }}>
-          Ya compré Pro — restaurar compra
-        </button>
-      </div>
-    </div>
-  );
 }
 
 /* ============================================================
@@ -1810,7 +1724,7 @@ function TabAnalisis({ gastos, sobres, tarjetas, presupSemanal, onNavToWeek, ini
 }
 
 /* ---------- Ajustes (F6) ---------- */
-function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose, esPro, onShowPro, gastos, sobres, pagos, tarjetas }) {
+function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose, gastos, sobres, pagos, tarjetas }) {
   const { categorias, diaInicio, updateDiaInicio, addCategoria, removeCategoria } = useCuenta();
   const [newCatNombre, setNewCatNombre] = useState("");
   const [newCatColor, setNewCatColor] = useState(COLORES_CATEGORIA[0]);
@@ -1910,10 +1824,9 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
         <p className="text-xs font-bold mb-2" style={{ color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Tema</p>
         <div className="grid grid-cols-5 gap-2 mb-5">
           {Object.entries(TEMAS).map(([key, t]) => {
-            const locked = t.pro && !esPro;
             return (
-              <button key={key} onClick={() => locked ? onShowPro() : onChangeTema(key)}
-                className="rounded-xl p-1.5 text-center relative" style={{ border: tema === key ? `2px solid ${t.ink}` : "2px solid transparent", background: "var(--paper)", opacity: locked ? 0.6 : 1 }}>
+              <button key={key} onClick={() => onChangeTema(key)}
+                className="rounded-xl p-1.5 text-center relative" style={{ border: tema === key ? `2px solid ${t.ink}` : "2px solid transparent", background: "var(--paper)" }}>
                 <div className="rounded-lg overflow-hidden mb-1" style={{ border: "1px solid var(--line)" }}>
                   <div style={{ background: t.paper, height: 20 }} />
                   <div className="flex">
@@ -1922,7 +1835,7 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
                   </div>
                   <div style={{ background: t.card, height: 12 }} />
                 </div>
-                <div className="text-[10px] font-bold" style={{ color: tema === key ? "var(--ink)" : "var(--ink-soft)" }}>{locked ? "🔒" : ""} {t.label}</div>
+                <div className="text-[10px] font-bold" style={{ color: tema === key ? "var(--ink)" : "var(--ink-soft)" }}>{t.label}</div>
               </button>
             );
           })}
@@ -2000,6 +1913,7 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
           )}
         </div>
 
+        {notificacionesDisponibles() && (<>
         <p className="text-xs font-bold mb-2 mt-5" style={{ color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Notificaciones</p>
         <div className="rounded-xl p-3 mb-5" style={{ background: "var(--paper)", border: "1px solid var(--line)" }}>
           <div className="text-sm font-semibold mb-1" style={{ color: "var(--ink)" }}>Recordatorio de pagos</div>
@@ -2016,40 +1930,16 @@ function SettingsPanel({ tema, onChangeTema, fondoCustom, onChangeFondo, onClose
             ))}
           </div>
         </div>
+        </>)}
 
         <p className="text-xs font-bold mb-2 mt-5" style={{ color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Datos</p>
-        <button onClick={() => {
-          if (!esPro) { onShowPro(); return; }
-          exportGastosCSV(gastos, sobres);
-        }} className="w-full flex items-center gap-3 rounded-xl px-3 py-3 mb-2" style={{ background: "var(--paper)", border: "1px solid var(--line)" }}>
+        <button onClick={() => exportGastosCSV(gastos, sobres)} className="w-full flex items-center gap-3 rounded-xl px-3 py-3 mb-2" style={{ background: "var(--paper)", border: "1px solid var(--line)" }}>
           <span className="text-lg">📊</span>
           <div className="text-left flex-1">
             <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>Exportar gastos a CSV</div>
-            <div className="text-xs" style={{ color: "var(--ink-soft)" }}>{esPro ? "Descarga tus datos" : "Funcion Pro"}</div>
+            <div className="text-xs" style={{ color: "var(--ink-soft)" }}>Descarga tus datos</div>
           </div>
-          {!esPro && <span className="text-sm">🔒</span>}
         </button>
-
-        {esPro ? (
-          <div className="w-full rounded-xl px-4 py-3 mb-2 flex items-center gap-3"
-            style={{ background: "linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,165,0,0.1))", border: "1px solid rgba(255,215,0,0.3)" }}>
-            <span className="text-xl">⭐</span>
-            <div className="text-left flex-1">
-              <div className="text-sm font-bold" style={{ color: "var(--ink)" }}>Tienes Sobres Pro</div>
-              <div className="text-xs" style={{ color: "var(--ink-soft)" }}>Sin anuncios · exportar · temas exclusivos</div>
-            </div>
-          </div>
-        ) : (
-          <button onClick={onShowPro} className="w-full rounded-xl px-4 py-3 mb-2 flex items-center gap-3"
-            style={{ background: "linear-gradient(135deg, #FFD700 0%, #FFA500 100%)", border: "none" }}>
-            <span className="text-xl">⭐</span>
-            <div className="text-left flex-1">
-              <div className="text-sm font-bold" style={{ color: "#1a1a1a" }}>Hazte Pro</div>
-              <div className="text-xs" style={{ color: "#4a3500" }}>Sin anuncios + exportar + temas</div>
-            </div>
-            <span className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: "rgba(0,0,0,.15)", color: "#1a1a1a" }}>{PRECIO_PRO}/año</span>
-          </button>
-        )}
 
         <p className="text-xs font-bold mb-2 mt-5" style={{ color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Ayuda</p>
         <div className="space-y-2">
@@ -2122,8 +2012,6 @@ function AppMain() {
   const [fondoCustom, setFondoCustom] = useState(() => localStorage.getItem("sobres_fondo") || "");
   const [pilar, setPilar] = useState(esPublica ? (perfil?.pilar_actual || 1) : 4);
   const [showTransicion, setShowTransicion] = useState(null);
-  const [esPro, setEsPro] = useState(!esPublica || !!perfil?.es_pro);
-  const [showProModal, setShowProModal] = useState(false);
 
   const cargarDatos = useCallback(async () => {
     if (!cuentaId) return;
@@ -2199,41 +2087,7 @@ function AppMain() {
     if (!visibles.includes(tab)) setTab("semana");
   }, [pilar, tab]);
 
-  // Crashlytics + review prompt
-  useEffect(() => {
-    initCrashlytics(perfil?.user_id);
-    markFirstUse();
-  }, []);
-
-  useEffect(() => {
-    if (gastos.length > 0 && gastos.length % 20 === 0) tryRequestReview();
-  }, [gastos.length]);
-
-  // Ads: inicializar y mostrar banner segun pilar (Pro = sin ads)
-  const gastosCountRef = useRef(gastos.length);
-  useEffect(() => {
-    if (esPro) return;
-    initAds().then(() => {
-      if (shouldShowAds(pilar)) {
-        showBanner(pilar);
-        prepareInterstitial(pilar);
-      }
-    });
-    return () => { hideBanner(); };
-  }, [esPro]);
-
-  useEffect(() => {
-    if (esPro) { hideBanner(); return; }
-    if (shouldShowAds(pilar)) { showBanner(pilar); prepareInterstitial(pilar); }
-    else hideBanner();
-  }, [pilar, esPro]);
-
-  const handleUpgradePro = async () => {
-    setEsPro(true);
-    setShowProModal(false);
-    hideBanner();
-    await supabase.from("perfiles").update({ es_pro: true }).eq("user_id", perfil.user_id);
-  };
+  useEffect(() => { initCrashlytics(perfil?.user_id); }, []);
 
   const addGasto = async (gasto) => {
     // Actualizacion local inmediata: no depender del evento realtime,
@@ -2243,10 +2097,6 @@ function AppMain() {
     setGastos((prev) => (prev.some((g) => g.id === data.id) ? prev : [data, ...prev]));
     mostrarToast("✓ Gasto guardado");
     logEvento("gasto_guardado", { con_sobre: !!gasto.sobre_id, medio: gasto.medio_pago });
-    gastosCountRef.current += 1;
-    if (!esPro && gastosCountRef.current % 5 === 0 && shouldShowAds(pilar)) {
-      setTimeout(() => showInterstitial(pilar), 800);
-    }
   };
   const deleteGasto = async (id) => {
     const { error } = await supabase.from("gastos").delete().eq("id", id);
@@ -2433,8 +2283,7 @@ function AppMain() {
       )}
 
       {showPagoForm && <GastoForm sobres={sobres} tarjetas={tarjetas} viewedWS={viewedWS} isCurrent={true} onAdd={confirmarPago} onClose={() => setShowPagoForm(null)} prefill={showPagoForm} />}
-      {showSettings && <SettingsPanel tema={tema} onChangeTema={cambiarTema} fondoCustom={fondoCustom} onChangeFondo={cambiarFondo} onClose={() => setShowSettings(false)} esPro={esPro} onShowPro={() => { setShowSettings(false); setShowProModal(true); }} gastos={gastos} sobres={sobres} pagos={pagos} tarjetas={tarjetas} />}
-      {showProModal && <ProModal onClose={() => setShowProModal(false)} onUpgrade={handleUpgradePro} />}
+      {showSettings && <SettingsPanel tema={tema} onChangeTema={cambiarTema} fondoCustom={fondoCustom} onChangeFondo={cambiarFondo} onClose={() => setShowSettings(false)} gastos={gastos} sobres={sobres} pagos={pagos} tarjetas={tarjetas} />}
 
       <PilarTransicion transicion={showTransicion} onContinuar={() => {
         const destino = showTransicion?.tabDestino;

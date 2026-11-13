@@ -1,5 +1,4 @@
-import { esPublica } from "../lib/appMode";
-import { PRECIO_PRO, APP_VERSION } from "../lib/pro";
+import { APP_VERSION } from "../lib/version";
 
 const FEATURES = [
   { icon: "✉️", title: "Sobres semanales", desc: "Divide tu presupuesto en sobres por concepto y controla cuánto te queda" },
@@ -38,11 +37,6 @@ export default function Landing({ onLogin }) {
             style={{ background: "#fff", color: "#0B7A4B" }}>
             Comenzar gratis
           </button>
-          <span
-            className="w-full rounded-2xl py-3.5 font-bold text-sm text-center"
-            style={{ background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.15)" }}>
-            Próximamente en Google Play
-          </span>
         </div>
       </div>
 
@@ -76,39 +70,10 @@ export default function Landing({ onLogin }) {
         </div>
       </div>
 
-      {/* Precio */}
-      {esPublica && (
-        <div className="px-5 py-10 max-w-lg mx-auto text-center">
-          <h2 className="text-lg font-extrabold text-white mb-6">Simple y accesible</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.08)" }}>
-              <div className="text-sm font-bold text-white mb-1">Gratis</div>
-              <div className="text-2xl font-extrabold text-white mb-2">$0</div>
-              <div className="text-xs space-y-1" style={{ color: "rgba(255,255,255,0.6)" }}>
-                <div>Sobres + libreta</div>
-                <div>Categorías</div>
-                <div>Sincronizado</div>
-                <div>Con anuncios</div>
-              </div>
-            </div>
-            <div className="rounded-2xl p-5" style={{ background: "linear-gradient(135deg, rgba(255,215,0,0.2), rgba(255,165,0,0.15))", border: "1px solid rgba(255,215,0,0.3)" }}>
-              <div className="text-sm font-bold mb-1" style={{ color: "#FFD700" }}>Pro</div>
-              <div className="text-2xl font-extrabold text-white mb-2">{PRECIO_PRO.replace("MXN", "").trim()}<span className="text-xs font-normal" style={{ color: "rgba(255,255,255,0.5)" }}>/año</span></div>
-              <div className="text-xs space-y-1" style={{ color: "rgba(255,255,255,0.6)" }}>
-                <div>Todo lo gratis</div>
-                <div>Sin anuncios</div>
-                <div>Exportar CSV</div>
-                <div>Temas exclusivos</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* CTA final */}
       <div className="px-5 py-10 pb-16 max-w-lg mx-auto text-center">
         <p className="text-sm font-medium mb-5" style={{ color: "rgba(255,255,255,0.6)" }}>
-          Empieza hoy — sin tarjeta, sin compromisos
+          Empieza hoy — gratis, sin anuncios y sin compromisos
         </p>
         <button onClick={onLogin}
           className="rounded-2xl px-10 py-3.5 font-bold text-sm shadow-lg"
